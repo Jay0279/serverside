@@ -2,43 +2,55 @@
 include 'config.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: auth/login.php");
+    header('Location: auth/login.php');
     exit();
 }
 
 $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
 
-// --- PLACEHOLDERS FOR YOUR GROUPMATES ---
-// Your groupmates will replace these 0s with their own database queries later
-$total_events = 0; 
-$total_clubs = 0;  
-$total_merits = 0; 
+function getSingleCount($conn, $sql, $user_id, $field = 'total')
+{
+    $stmt = mysqli_prepare($conn, $sql);
+    mysqli_stmt_bind_param($stmt, 'i', $user_id);
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($result);
+    mysqli_stmt_close($stmt);
+    return (int) ($row[$field] ?? 0);
+}
 
-// --- YOUR MODULE LOGIC (ACHIEVEMENTS) ---
-$total_sql = "SELECT COUNT(*) AS total FROM achievements WHERE user_id = ?";
-$stmt = mysqli_prepare($conn, $total_sql);
-mysqli_stmt_bind_param($stmt, "i", $user_id);
-mysqli_stmt_execute($stmt);
-$total_result = mysqli_stmt_get_result($stmt);
-$total_row = mysqli_fetch_assoc($total_result);
-$total_achievements = $total_row['total'];
+$total_events = getSingleCount($conn, 'SELECT COUNT(*) AS total FROM events WHERE user_id = ?', $user_id);
+$total_clubs = 0;
+$total_merits = 0;
+$total_achievements = getSingleCount($conn, 'SELECT COUNT(*) AS total FROM achievements WHERE user_id = ?', $user_id);
 
-// Fetching recent activity (Currently just achievements, groupmates can add to this)
-$recent_sql = "SELECT * FROM achievements WHERE user_id = ? ORDER BY achievement_date DESC LIMIT 4";
+$recent_sql = "
+    (SELECT 'event' AS module_name, '📅' AS module_icon, event_title AS title, participation_role AS detail, event_date AS activity_date
+     FROM events
+     WHERE user_id = ?)
+    UNION ALL
+    (SELECT 'achievement' AS module_name, '🏆' AS module_icon, title AS title, COALESCE(level, 'N/A') AS detail, achievement_date AS activity_date
+     FROM achievements
+     WHERE user_id = ?)
+    ORDER BY activity_date DESC
+    LIMIT 6
+";
 $stmt = mysqli_prepare($conn, $recent_sql);
-mysqli_stmt_bind_param($stmt, "i", $user_id);
+mysqli_stmt_bind_param($stmt, 'ii', $user_id, $user_id);
 mysqli_stmt_execute($stmt);
 $recent_result = mysqli_stmt_get_result($stmt);
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | CCMS</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body class="main-body">
     <div class="sidebar">
         <div>
@@ -48,7 +60,7 @@ $recent_result = mysqli_stmt_get_result($stmt);
 
         <div class="nav-links">
             <a href="dashboard.php" class="active">📊 Dashboard</a>
-            <a href="#">📅 Event Tracker</a>
+            <a href="event_tracker/events.php">📅 Event Tracker</a>
             <a href="#">👥 Club Tracker</a>
             <a href="#">⏱️ Merit Tracker</a>
             <a href="achievement_tracker/achievements.php">🏆 Achievements</a>
@@ -70,34 +82,34 @@ $recent_result = mysqli_stmt_get_result($stmt);
             <div class="stat-card blue">
                 <span class="stat-title">Events Attended</span>
                 <h3><?php echo $total_events; ?></h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Programmes & talks</p>
+                <p class="stat-note">Programmes & talks</p>
             </div>
 
             <div class="stat-card green">
                 <span class="stat-title">Active Clubs</span>
                 <h3><?php echo $total_clubs; ?></h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Current memberships</p>
+                <p class="stat-note">Current memberships</p>
             </div>
 
             <div class="stat-card orange">
                 <span class="stat-title">Merit Hours</span>
                 <h3><?php echo $total_merits; ?></h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Total contribution</p>
+                <p class="stat-note">Total contribution</p>
             </div>
 
             <div class="stat-card purple">
                 <span class="stat-title">Total Achievements</span>
                 <h3><?php echo $total_achievements; ?></h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Recorded recognitions</p>
+                <p class="stat-note">Recorded recognitions</p>
             </div>
         </div>
 
         <div class="card-grid">
-            <div class="module-card">
+            <div class="module-card highlight">
                 <div class="module-icon">📅</div>
                 <h3>Event Tracker</h3>
-                <p>Track formal programmes, workshops, competitions, and talks.</p>
-                <a href="#" class="btn-disabled" style="margin-top: auto; text-align: center;">In Progress</a>
+                <p>Track formal programmes, workshops, competitions, talks, and volunteering records with filters and summaries.</p>
+                <a href="event_tracker/events.php" class="btn-primary" style="margin-top: auto;">Open Module</a>
             </div>
 
             <div class="module-card">
@@ -125,19 +137,19 @@ $recent_result = mysqli_stmt_get_result($stmt);
         <div class="panel">
             <div class="panel-header">
                 <h2 style="color: var(--dark);">Recent System Activity</h2>
-                <a href="achievement_tracker/achievements.php" style="color: var(--primary); text-decoration: none; font-weight: bold;">View all →</a>
+                <a href="event_tracker/events.php" style="color: var(--primary); text-decoration: none; font-weight: bold;">View events →</a>
             </div>
 
             <?php if ($recent_result && mysqli_num_rows($recent_result) > 0): ?>
                 <div class="recent-list">
                     <?php while ($row = mysqli_fetch_assoc($recent_result)): ?>
                         <div class="recent-item">
-                            <div class="recent-badge">🏆</div>
+                            <div class="recent-badge"><?php echo htmlspecialchars($row['module_icon']); ?></div>
                             <div>
                                 <h4><?php echo htmlspecialchars($row['title']); ?></h4>
-                                <p>Achievement Module • <?php echo htmlspecialchars($row['level'] ?? 'N/A'); ?></p>
+                                <p><?php echo ucfirst(htmlspecialchars($row['module_name'])); ?> Module • <?php echo htmlspecialchars($row['detail'] ?? 'N/A'); ?></p>
                             </div>
-                            <span class="recent-date"><?php echo htmlspecialchars($row['achievement_date'] ?? 'No Date'); ?></span>
+                            <span class="recent-date"><?php echo !empty($row['activity_date']) ? htmlspecialchars(date('d M Y', strtotime($row['activity_date']))) : 'No Date'; ?></span>
                         </div>
                     <?php endwhile; ?>
                 </div>
@@ -151,4 +163,5 @@ $recent_result = mysqli_stmt_get_result($stmt);
         </div>
     </div>
 </body>
+
 </html>

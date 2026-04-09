@@ -1,33 +1,128 @@
 <?php
-include 'config.php';
+include '../config.php';
 
-// Kick them out if they aren't logged in OR if they aren't an admin
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: dashboard.php");
+if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || $_SESSION['role'] !== 'admin') {
+    header("Location: ../dashboard.php");
     exit();
 }
 
 $username = $_SESSION['username'];
+$search = trim($_GET['search'] ?? '');
 
-// Fetch all students and count their achievements
-$sql = "SELECT u.id, u.username, u.email, 
-        (SELECT COUNT(*) FROM achievements WHERE user_id = u.id) as total_achievements
-        FROM users u 
-        WHERE u.role = 'student'
-        ORDER BY u.id DESC";
-$result = mysqli_query($conn, $sql);
+/*
+    CHANGE THESE ONLY IF YOUR REAL TABLE NAMES ARE DIFFERENT
+*/
+$events_table = 'events';
+$clubs_table = 'clubs';
+$merits_table = 'merits';
+$achievements_table = 'achievements';
 
-// Count total students
-$total_students = mysqli_num_rows($result);
+/* ---------- Check whether table exists ---------- */
+function table_exists($conn, $table_name)
+{
+    $table_name = mysqli_real_escape_string($conn, $table_name);
+    $sql = "SHOW TABLES LIKE '$table_name'";
+    $result = mysqli_query($conn, $sql);
+    return $result && mysqli_num_rows($result) > 0;
+}
+
+/* ---------- Safe count ---------- */
+function safe_total_count($conn, $table_name)
+{
+    if (!table_exists($conn, $table_name)) {
+        return 0;
+    }
+
+    $sql = "SELECT COUNT(*) AS total FROM `$table_name`";
+    $result = mysqli_query($conn, $sql);
+
+    if ($result) {
+        $row = mysqli_fetch_assoc($result);
+        return (int)$row['total'];
+    }
+
+    return 0;
+}
+
+/* ---------- Safe student count ---------- */
+$total_students = 0;
+$stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM users WHERE role = ?");
+$role = 'student';
+mysqli_stmt_bind_param($stmt, "s", $role);
+mysqli_stmt_execute($stmt);
+$result_students = mysqli_stmt_get_result($stmt);
+if ($result_students) {
+    $row_students = mysqli_fetch_assoc($result_students);
+    $total_students = (int)$row_students['total'];
+}
+mysqli_stmt_close($stmt);
+
+/* ---------- Top summary cards ---------- */
+$total_events = safe_total_count($conn, $events_table);
+$total_clubs = safe_total_count($conn, $clubs_table);
+$total_merits = safe_total_count($conn, $merits_table);
+$total_achievements = safe_total_count($conn, $achievements_table);
+
+/* ---------- Per-user summary expressions ---------- */
+$events_expr = table_exists($conn, $events_table)
+    ? "(SELECT COUNT(*) FROM `$events_table` WHERE user_id = u.id)"
+    : "0";
+
+$clubs_expr = table_exists($conn, $clubs_table)
+    ? "(SELECT COUNT(*) FROM `$clubs_table` WHERE user_id = u.id)"
+    : "0";
+
+$merits_expr = table_exists($conn, $merits_table)
+    ? "(SELECT COUNT(*) FROM `$merits_table` WHERE user_id = u.id)"
+    : "0";
+
+$achievements_expr = table_exists($conn, $achievements_table)
+    ? "(SELECT COUNT(*) FROM `$achievements_table` WHERE user_id = u.id)"
+    : "0";
+
+/* ---------- Student usage summary ---------- */
+$sql = "
+    SELECT
+        u.id,
+        u.username,
+        u.email,
+        $events_expr AS total_events,
+        $clubs_expr AS total_clubs,
+        $merits_expr AS total_merits,
+        $achievements_expr AS total_achievements
+    FROM users u
+    WHERE u.role = ?
+";
+
+$params = ['student'];
+$types = "s";
+
+if ($search !== '') {
+    $sql .= " AND (u.username LIKE ? OR u.email LIKE ?)";
+    $searchLike = "%" . $search . "%";
+    $params[] = $searchLike;
+    $params[] = $searchLike;
+    $types .= "ss";
+}
+
+$sql .= " ORDER BY u.id DESC";
+
+$stmt = mysqli_prepare($conn, $sql);
+mysqli_stmt_bind_param($stmt, $types, ...$params);
+mysqli_stmt_execute($stmt);
+$result = mysqli_stmt_get_result($stmt);
+$filtered_students = $result ? mysqli_num_rows($result) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard | CCMS</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../style.css">
 </head>
+
 <body class="main-body">
     <div class="sidebar" style="background: linear-gradient(180deg, #1e1b4b, #312e81);">
         <div>
@@ -37,9 +132,10 @@ $total_students = mysqli_num_rows($result);
 
         <div class="nav-links">
             <a href="admin_dashboard.php" class="active">👥 User Management</a>
+            <a href="../dashboard.php">📊 Student Dashboard</a>
         </div>
 
-        <a href="auth/logout.php" class="logout-link">Log Out</a>
+        <a href="../auth/logout.php" class="logout-link">Log Out</a>
     </div>
 
     <div class="content">
@@ -47,7 +143,9 @@ $total_students = mysqli_num_rows($result);
             <div>
                 <p class="hero-label" style="color: #c7d2fe;">System Administrator</p>
                 <h1 style="color: white;">Welcome, <?php echo htmlspecialchars($username); ?> 🛡️</h1>
-                <p style="opacity: 0.9; margin-top: 0.5rem;">Oversee student accounts and monitor system-wide co-curricular records.</p>
+                <p style="opacity: 0.9; margin-top: 0.5rem;">
+                    Monitor all registered students and review overall system usage across events, clubs, merits, and achievements.
+                </p>
             </div>
         </div>
 
@@ -55,48 +153,161 @@ $total_students = mysqli_num_rows($result);
             <div class="stat-card blue">
                 <span class="stat-title">Registered Students</span>
                 <h3><?php echo $total_students; ?></h3>
-                <p style="color: var(--text-muted); font-size: 0.9rem;">Total active accounts</p>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Student accounts in system</p>
+            </div>
+
+            <div class="stat-card green">
+                <span class="stat-title">Total Events</span>
+                <h3><?php echo $total_events; ?></h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">All event records</p>
+            </div>
+
+            <div class="stat-card orange">
+                <span class="stat-title">Total Merit Records</span>
+                <h3><?php echo $total_merits; ?></h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">All merit submissions</p>
+            </div>
+
+            <div class="stat-card purple">
+                <span class="stat-title">Total Achievements</span>
+                <h3><?php echo $total_achievements; ?></h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Recognition records</p>
+            </div>
+
+            <div class="stat-card" style="border-left-color:#14b8a6;">
+                <span class="stat-title">Total Clubs</span>
+                <h3><?php echo $total_clubs; ?></h3>
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Club membership records</p>
             </div>
         </div>
 
-        <div class="panel">
-            <div class="panel-header">
-                <h2 style="color: var(--dark);">Student Usage Summary</h2>
+        <div class="panel" style="margin-bottom: 2rem;">
+            <div class="panel-header" style="gap: 1rem; flex-wrap: wrap;">
+                <div>
+                    <h2 style="color: var(--dark); margin-bottom: 0.35rem;">Student Usage Summary</h2>
+                    <p style="color: var(--text-muted); font-size: 0.95rem;">
+                        <?php echo $filtered_students; ?> result(s)
+                        <?php if ($search !== ''): ?>
+                            for "<strong><?php echo htmlspecialchars($search); ?></strong>"
+                        <?php endif; ?>
+                    </p>
+                </div>
+
+                <form method="GET" action="" style="display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: center;">
+                    <input
+                        type="text"
+                        name="search"
+                        placeholder="Search by username or email"
+                        value="<?php echo htmlspecialchars($search); ?>"
+                        style="min-width: 260px; padding: 0.8rem 1rem; border: 2px solid var(--border); border-radius: 12px; outline: none;">
+                    <button type="submit" class="btn-primary">Search</button>
+                    <?php if ($search !== ''): ?>
+                        <a href="admin_dashboard.php" class="btn-disabled" style="text-decoration:none; display:inline-block; cursor:pointer;">Reset</a>
+                    <?php endif; ?>
+                </form>
             </div>
 
-            <div class="table-wrapper" style="overflow-x: auto; background: white; border-radius: 12px; border: 1px solid var(--border);">
-                <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <div class="table-wrapper" style="overflow-x: auto; background: white; border-radius: 16px; border: 1px solid var(--border);">
+                <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 980px;">
                     <thead style="background: var(--bg-light); border-bottom: 2px solid var(--border);">
                         <tr>
                             <th style="padding: 1rem;">ID</th>
                             <th style="padding: 1rem;">Student Name</th>
                             <th style="padding: 1rem;">Email</th>
-                            <th style="padding: 1rem;">Total Achievements</th>
+                            <th style="padding: 1rem; text-align:center;">Events</th>
+                            <th style="padding: 1rem; text-align:center;">Clubs</th>
+                            <th style="padding: 1rem; text-align:center;">Merits</th>
+                            <th style="padding: 1rem; text-align:center;">Achievements</th>
+                            <th style="padding: 1rem; text-align:center;">Total Records</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if ($total_students > 0): ?>
+                        <?php if ($result && mysqli_num_rows($result) > 0): ?>
                             <?php while ($row = mysqli_fetch_assoc($result)): ?>
+                                <?php
+                                $grand_total =
+                                    (int)$row['total_events'] +
+                                    (int)$row['total_clubs'] +
+                                    (int)$row['total_merits'] +
+                                    (int)$row['total_achievements'];
+                                ?>
                                 <tr style="border-bottom: 1px solid var(--border);">
                                     <td style="padding: 1rem; color: var(--text-muted);">#<?php echo $row['id']; ?></td>
-                                    <td style="padding: 1rem;"><strong><?php echo htmlspecialchars($row['username']); ?></strong></td>
-                                    <td style="padding: 1rem; color: var(--text-muted);"><?php echo htmlspecialchars($row['email']); ?></td>
                                     <td style="padding: 1rem;">
-                                        <span class="badge badge-success" style="padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: bold;">
-                                            <?php echo $row['total_achievements']; ?> Records
+                                        <strong style="color: var(--dark);"><?php echo htmlspecialchars($row['username']); ?></strong>
+                                    </td>
+                                    <td style="padding: 1rem; color: var(--text-muted);">
+                                        <?php echo htmlspecialchars($row['email']); ?>
+                                    </td>
+                                    <td style="padding: 1rem; text-align:center;">
+                                        <span style="display:inline-block; min-width:44px; padding:0.35rem 0.75rem; border-radius:999px; background:#dbeafe; color:#1d4ed8; font-weight:700;">
+                                            <?php echo $row['total_events']; ?>
+                                        </span>
+                                    </td>
+                                    <td style="padding: 1rem; text-align:center;">
+                                        <span style="display:inline-block; min-width:44px; padding:0.35rem 0.75rem; border-radius:999px; background:#dcfce7; color:#15803d; font-weight:700;">
+                                            <?php echo $row['total_clubs']; ?>
+                                        </span>
+                                    </td>
+                                    <td style="padding: 1rem; text-align:center;">
+                                        <span style="display:inline-block; min-width:44px; padding:0.35rem 0.75rem; border-radius:999px; background:#fef3c7; color:#b45309; font-weight:700;">
+                                            <?php echo $row['total_merits']; ?>
+                                        </span>
+                                    </td>
+                                    <td style="padding: 1rem; text-align:center;">
+                                        <span style="display:inline-block; min-width:44px; padding:0.35rem 0.75rem; border-radius:999px; background:#ede9fe; color:#6d28d9; font-weight:700;">
+                                            <?php echo $row['total_achievements']; ?>
+                                        </span>
+                                    </td>
+                                    <td style="padding: 1rem; text-align:center;">
+                                        <span style="display:inline-block; min-width:58px; padding:0.45rem 0.8rem; border-radius:999px; background:#111827; color:white; font-weight:700;">
+                                            <?php echo $grand_total; ?>
                                         </span>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="4" style="padding: 2rem; text-align: center; color: var(--text-muted);">No students registered yet.</td>
+                                <td colspan="8" style="padding: 2.5rem; text-align: center;">
+                                    <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">👥</div>
+                                    <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No students found</h3>
+                                    <p style="color: var(--text-muted);">
+                                        Try another search keyword or wait until students register in the system.
+                                    </p>
+                                </td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
             </div>
         </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h2 style="color: var(--dark);">Admin Notes</h2>
+            </div>
+
+            <div class="card-grid" style="margin-bottom: 0;">
+                <div class="module-card">
+                    <div class="module-icon">🔍</div>
+                    <h3>Search Support</h3>
+                    <p>Find students quickly by username or email to review their system activity summary.</p>
+                </div>
+
+                <div class="module-card">
+                    <div class="module-icon">📈</div>
+                    <h3>System Monitoring</h3>
+                    <p>Review overall totals across event, club, merit, and achievement modules from one place.</p>
+                </div>
+
+                <div class="module-card">
+                    <div class="module-icon">🧩</div>
+                    <h3>Integrated Overview</h3>
+                    <p>See how centralized login and user-linked module records come together in one dashboard.</p>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
+
 </html>
