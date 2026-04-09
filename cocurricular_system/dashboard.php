@@ -13,7 +13,6 @@ $username = $_SESSION['username'];
 // Your groupmates will replace these 0s with their own database queries later
 $total_events = 0; 
 $total_clubs = 0;  
-$total_merits = 0; 
 
 // --- YOUR MODULE LOGIC (ACHIEVEMENTS) ---
 $total_sql = "SELECT COUNT(*) AS total FROM achievements WHERE user_id = ?";
@@ -23,6 +22,15 @@ mysqli_stmt_execute($stmt);
 $total_result = mysqli_stmt_get_result($stmt);
 $total_row = mysqli_fetch_assoc($total_result);
 $total_achievements = $total_row['total'];
+
+// Fetching Merit Hours
+$sql_total_merits = "SELECT COALESCE(SUM(hours_contributed), 0) AS total_merits FROM merits WHERE user_id = ?";
+$stmt_total_merits = mysqli_prepare($conn, $sql_total_merits);
+mysqli_stmt_bind_param($stmt_total_merits, "i", $user_id);
+mysqli_stmt_execute($stmt_total_merits);
+$result_total_merits = mysqli_stmt_get_result($stmt_total_merits);
+$row_total_merits = mysqli_fetch_assoc($result_total_merits);
+$total_merits = $row_total_merits['total_merits'];
 
 // Fetching recent activity (Currently just achievements, groupmates can add to this)
 $recent_sql = "SELECT * FROM achievements WHERE user_id = ? ORDER BY achievement_date DESC LIMIT 4";
@@ -50,7 +58,7 @@ $recent_result = mysqli_stmt_get_result($stmt);
             <a href="dashboard.php" class="active">📊 Dashboard</a>
             <a href="#">📅 Event Tracker</a>
             <a href="#">👥 Club Tracker</a>
-            <a href="#">⏱️ Merit Tracker</a>
+            <a href="merit_tracker/merit.php">⏱️ Merit Tracker</a>
             <a href="achievement_tracker/achievements.php">🏆 Achievements</a>
         </div>
 
@@ -111,7 +119,7 @@ $recent_result = mysqli_stmt_get_result($stmt);
                 <div class="module-icon">⏱️</div>
                 <h3>Merit Tracker</h3>
                 <p>Record contribution hours, volunteering, and service participation.</p>
-                <a href="#" class="btn-disabled" style="margin-top: auto; text-align: center;">In Progress</a>
+                <a href="merit_tracker/merit.php" class="btn-primary" style="margin-top: auto; text-align: center;">Open Module</a>
             </div>
 
             <div class="module-card">
