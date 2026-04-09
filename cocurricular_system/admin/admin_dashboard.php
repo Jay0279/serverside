@@ -1,9 +1,9 @@
 <?php
-include 'config.php';
+include '../config.php';
 
 // Kick them out if they aren't logged in OR if they aren't an admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: dashboard.php");
+    header("Location: ../dashboard.php");
     exit();
 }
 
@@ -11,7 +11,8 @@ $username = $_SESSION['username'];
 
 // Fetch all students and count their achievements
 $sql = "SELECT u.id, u.username, u.email, 
-        (SELECT COUNT(*) FROM achievements WHERE user_id = u.id) as total_achievements
+        (SELECT COUNT(*) FROM achievements WHERE user_id = u.id) as total_achievements,
+        (SELECT COALESCE(SUM(hours_contributed), 0) FROM merits WHERE user_id = u.id) as total_merit_hours
         FROM users u 
         WHERE u.role = 'student'
         ORDER BY u.id DESC";
@@ -39,7 +40,7 @@ $total_students = mysqli_num_rows($result);
             <a href="admin_dashboard.php" class="active">👥 User Management</a>
         </div>
 
-        <a href="auth/logout.php" class="logout-link">Log Out</a>
+        <a href="../auth/logout.php" class="logout-link">Log Out</a>
     </div>
 
     <div class="content">
@@ -72,6 +73,7 @@ $total_students = mysqli_num_rows($result);
                             <th style="padding: 1rem;">Student Name</th>
                             <th style="padding: 1rem;">Email</th>
                             <th style="padding: 1rem;">Total Achievements</th>
+                            <th style="padding: 1rem;">Total Contribution Hours</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -86,11 +88,16 @@ $total_students = mysqli_num_rows($result);
                                             <?php echo $row['total_achievements']; ?> Records
                                         </span>
                                     </td>
+                                    <td style="padding: 1rem;">
+                                        <span class="badge" style="padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: bold; background: #dbeafe; color: #1d4ed8;">
+                                            <?php echo number_format($row['total_merit_hours'], 2); ?> hrs
+                                        </span>
+                                    </td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="4" style="padding: 2rem; text-align: center; color: var(--text-muted);">No students registered yet.</td>
+                                <td colspan="5" style="padding: 2rem; text-align: center; color: var(--text-muted);">No students registered yet.</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
