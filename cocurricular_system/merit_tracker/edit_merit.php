@@ -47,7 +47,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error = "End date cannot be earlier than start date.";
     } else {
         $update_sql = "UPDATE merits 
-                       SET activity_title = ?, activity_type = ?, start_date = ?, end_date = ?, hours_contributed = ?, description = ?
+                       SET activity_title = ?, activity_type = ?, start_date = ?, end_date = ?, hours_contributed = ?, description = ?, status = 'Pending'
                        WHERE merit_id = ? AND user_id = ?";
         $update_stmt = mysqli_prepare($conn, $update_sql);
         mysqli_stmt_bind_param(
