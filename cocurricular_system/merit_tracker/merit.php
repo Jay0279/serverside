@@ -139,7 +139,7 @@ $success = isset($_GET['success']) ? $_GET['success'] : '';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Merit Tracker | CCMS</title>
-    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../../style.css">
     <style>
         .pagination { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
         .page-link { padding: 8px 12px; border-radius: 8px; background: #e5e7eb; color: #374151; text-decoration: none; font-weight: bold; transition: 0.2s; }

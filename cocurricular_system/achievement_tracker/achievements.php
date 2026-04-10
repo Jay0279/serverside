@@ -93,7 +93,7 @@ $base_url = '?' . http_build_query($query_string) . '&page=';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Achievement Tracker | CCMS</title>
-    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../../style.css">
     <style>
         .badge-success { background: #dcfce7; color: #166534; }
         .badge-warning { background: #fef08a; color: #854d0e; }
