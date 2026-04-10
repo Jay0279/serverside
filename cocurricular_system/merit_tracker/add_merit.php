@@ -26,8 +26,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif ($end_date < $start_date) {
         $error = "End date cannot be earlier than start date.";
     } else {
-        $sql = "INSERT INTO merits (user_id, activity_title, activity_type, start_date, end_date, hours_contributed, description, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+        $sql = "INSERT INTO merits (user_id, activity_title, activity_type, start_date, end_date, hours_contributed, description, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
         $stmt = mysqli_prepare($conn, $sql);
         mysqli_stmt_bind_param($stmt, "issssds", $user_id, $activity_title, $activity_type, $start_date, $end_date, $hours_contributed, $description);
 
