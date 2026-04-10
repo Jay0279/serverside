@@ -114,7 +114,7 @@ $base_url = '?' . http_build_query($query_string) . '&page=';
         </div>
 
         <div class="nav-links">
-            <a href="../dashboard.php">📊 Dashboard</a>
+            <a href="../../dashboard.php">📊 Dashboard</a>
             <a href="#">📅 Event Tracker</a>
             <a href="#">👥 Club Tracker</a>
             <a href="#">⏱️ Merit Tracker</a>

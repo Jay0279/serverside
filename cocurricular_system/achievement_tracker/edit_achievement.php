@@ -109,7 +109,7 @@ if (isset($_POST['update'])) {
             <p class="sidebar-subtitle">Student Portal</p>
         </div>
         <div class="nav-links">
-            <a href="../dashboard.php">📊 Dashboard</a>
+            <a href="../../dashboard.php">📊 Dashboard</a>
             <a href="achievements.php" class="active">🏆 Achievements</a>
         </div>
         <a href="../auth/logout.php" class="logout-link">Log Out</a>

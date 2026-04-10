@@ -189,7 +189,7 @@ $success = isset($_GET['success']) ? $_GET['success'] : '';
         </div>
 
         <div class="nav-links">
-            <a href="../dashboard.php">📊 Dashboard</a>
+            <a href="../../dashboard.php">📊 Dashboard</a>
             <a href="../event_tracker/events.php">📅 Event Tracker</a>
             <a href="../club_tracker/clubs.php">👥 Club Tracker</a>
             <a href="merit.php" class="active">⏱️ Merit Tracker</a>

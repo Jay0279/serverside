@@ -174,7 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="nav-links">
-            <a href="../dashboard.php">📊 Dashboard</a>
+            <a href="../../dashboard.php">📊 Dashboard</a>
             <a href="events.php" class="active">📅 Event Tracker</a>
             <a href="#">👥 Club Tracker</a>
             <a href="#">⏱️ Merit Tracker</a>
