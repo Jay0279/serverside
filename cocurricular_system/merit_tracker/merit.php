@@ -76,8 +76,9 @@ if (!empty($activity_type)) {
 
 
 // OVERALL SUMMARY - Total reords and total hours
-$summary_sql = "SELECT COUNT(*) AS total_records, 
-                COALESCE(SUM(hours_contributed), 0) AS total_hours
+$summary_sql = "SELECT 
+                COUNT(*) AS total_records,
+                COALESCE(SUM(CASE WHEN status = 'Completed' THEN hours_contributed ELSE 0 END), 0) AS total_hours
                 FROM merits
                 WHERE user_id = ?";
 $stmt_summary = mysqli_prepare($conn, $summary_sql);
@@ -276,8 +277,8 @@ $success = isset($_GET['success']) ? $_GET['success'] : '';
                                 <th style="padding: 1rem;">Activity Title</th>
                                 <th style="padding: 1rem;">Type</th>
                                 <th style="padding: 1rem;">Start Date</th>
-                                <th style="padding: 1rem;">End Date</th>
                                 <th style="padding: 1rem;">Hours</th>
+                                <th style="padding: 1rem;">Status</th>
                                 <th style="padding: 1rem;">Description</th>
                                 <th style="padding: 1rem; text-align: center;">Action</th>
                             </tr>
@@ -288,11 +289,13 @@ $success = isset($_GET['success']) ? $_GET['success'] : '';
                                     <td style="padding: 1rem;"><strong><?php echo htmlspecialchars($row['activity_title']); ?></strong></td>
                                     <td style="padding: 1rem; color: var(--text-muted);"><?php echo htmlspecialchars($row['activity_type']); ?></td>
                                     <td style="padding: 1rem; color: var(--text-muted);"><?php echo htmlspecialchars($row['start_date']); ?></td>
-                                    <td style="padding: 1rem; color: var(--text-muted);"><?php echo htmlspecialchars($row['end_date']); ?></td>
                                     <td style="padding: 1rem;">
                                         <span class="badge badge-hours" style="padding: 0.4rem 0.8rem; border-radius: 20px; font-size: 0.85rem; font-weight: bold;">
                                             <?php echo htmlspecialchars($row['hours_contributed']); ?> hrs
                                         </span>
+                                    </td>
+                                    <td style="padding: 1rem;">
+                                        <?php echo htmlspecialchars($row['status']); ?>
                                     </td>
                                     <td style="padding: 1rem; color: var(--text-muted); max-width: 250px;">
                                         <?php echo !empty($row['description']) ? nl2br(htmlspecialchars($row['description'])) : '-'; ?>
