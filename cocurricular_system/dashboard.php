@@ -9,7 +9,6 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
 
-<<<<<<< HEAD
 function getSingleCount($conn, $sql, $user_id, $field = 'total')
 {
     $stmt = mysqli_prepare($conn, $sql);
@@ -20,19 +19,21 @@ function getSingleCount($conn, $sql, $user_id, $field = 'total')
     mysqli_stmt_close($stmt);
     return (int) ($row[$field] ?? 0);
 }
-=======
-// --- PLACEHOLDERS FOR YOUR GROUPMATES ---
-// Your groupmates will replace these 0s with their own database queries later
-$total_events = 0; 
-$total_clubs = 0;  
->>>>>>> d645603d3ab2cd737aea924f4d277f62da4dea34
 
 $total_events = getSingleCount($conn, 'SELECT COUNT(*) AS total FROM events WHERE user_id = ?', $user_id);
 $total_clubs = 0;
 $total_merits = 0;
 $total_achievements = getSingleCount($conn, 'SELECT COUNT(*) AS total FROM achievements WHERE user_id = ?', $user_id);
 
-<<<<<<< HEAD
+// Fetching Merit Hours
+$sql_total_merits = "SELECT COALESCE(SUM(hours_contributed), 0) AS total_merits FROM merits WHERE user_id = ? AND status = 'Completed'";
+$stmt_total_merits = mysqli_prepare($conn, $sql_total_merits);
+mysqli_stmt_bind_param($stmt_total_merits, "i", $user_id);
+mysqli_stmt_execute($stmt_total_merits);
+$result_total_merits = mysqli_stmt_get_result($stmt_total_merits);
+$row_total_merits = mysqli_fetch_assoc($result_total_merits);
+$total_merits = $row_total_merits['total_merits'];
+
 $recent_sql = "
     (SELECT 'event' AS module_name, '📅' AS module_icon, event_title AS title, participation_role AS detail, event_date AS activity_date
      FROM events
@@ -41,27 +42,20 @@ $recent_sql = "
     (SELECT 'achievement' AS module_name, '🏆' AS module_icon, title AS title, COALESCE(level, 'N/A') AS detail, achievement_date AS activity_date
      FROM achievements
      WHERE user_id = ?)
+     UNION ALL
+    (SELECT 'merit' AS module_name, '⏱️' AS module_icon, activity_title AS title, activity_type AS detail, start_date AS activity_date
+     FROM merits
+     WHERE user_id = ?)
     ORDER BY activity_date DESC
     LIMIT 6
 ";
-=======
-// Fetching Merit Hours
-$sql_total_merits = "SELECT COALESCE(SUM(hours_contributed), 0) AS total_merits FROM merits WHERE user_id = ?";
-$stmt_total_merits = mysqli_prepare($conn, $sql_total_merits);
-mysqli_stmt_bind_param($stmt_total_merits, "i", $user_id);
-mysqli_stmt_execute($stmt_total_merits);
-$result_total_merits = mysqli_stmt_get_result($stmt_total_merits);
-$row_total_merits = mysqli_fetch_assoc($result_total_merits);
-$total_merits = $row_total_merits['total_merits'];
 
-// Fetching recent activity (Currently just achievements, groupmates can add to this)
-$recent_sql = "SELECT * FROM achievements WHERE user_id = ? ORDER BY achievement_date DESC LIMIT 4";
->>>>>>> d645603d3ab2cd737aea924f4d277f62da4dea34
 $stmt = mysqli_prepare($conn, $recent_sql);
-mysqli_stmt_bind_param($stmt, 'ii', $user_id, $user_id);
+mysqli_stmt_bind_param($stmt, 'iii', $user_id, $user_id, $user_id);
 mysqli_stmt_execute($stmt);
 $recent_result = mysqli_stmt_get_result($stmt);
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 
