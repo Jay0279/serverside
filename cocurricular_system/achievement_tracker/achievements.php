@@ -1,8 +1,8 @@
 <?php
-include '../config.php';
+include '../../config.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../auth/login.php");
+    header("Location: ../../auth/login.php");
     exit();
 }
 
@@ -121,7 +121,7 @@ $base_url = '?' . http_build_query($query_string) . '&page=';
             <a href="achievements.php" class="active">🏆 Achievements</a>
         </div>
 
-        <a href="../auth/logout.php" class="logout-link">Log Out</a>
+        <a href="../../auth/logout.php" class="logout-link">Log Out</a>
     </div>
 
     <div class="content">
@@ -226,3 +226,4 @@ $base_url = '?' . http_build_query($query_string) . '&page=';
     </div>
 </body>
 </html>
+

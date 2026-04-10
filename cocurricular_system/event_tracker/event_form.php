@@ -1,8 +1,8 @@
 <?php
-include '../config.php';
+include '../../config.php';
 
 if (!isset($_SESSION['user_id'])) {
-    header('Location: ../auth/login.php');
+    header('Location: ../../auth/login.php');
     exit();
 }
 
@@ -181,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <a href="../achievement_tracker/achievements.php">🏆 Achievements</a>
         </div>
 
-        <a href="../auth/logout.php" class="logout-link">Log Out</a>
+        <a href="../../auth/logout.php" class="logout-link">Log Out</a>
     </div>
 
     <div class="content">
@@ -291,3 +291,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </body>
 
 </html>
+

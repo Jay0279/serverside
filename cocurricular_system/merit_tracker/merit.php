@@ -1,9 +1,9 @@
 <?php
-include '../config.php';
+include '../../config.php';
 
 // SESSION VALIDATION
 if (!isset($_SESSION['user_id'])) {
-    header("Location: ../auth/login.php");
+    header("Location: ../../auth/login.php");
     exit();
 }
 
@@ -196,7 +196,7 @@ $success = isset($_GET['success']) ? $_GET['success'] : '';
             <a href="../achievement_tracker/achievements.php">🏆 Achievements</a>
         </div>
 
-        <a href="../auth/logout.php" class="logout-link">Log Out</a>
+        <a href="../../auth/logout.php" class="logout-link">Log Out</a>
     </div>
 
     <div class="content">
@@ -331,3 +331,4 @@ $success = isset($_GET['success']) ? $_GET['success'] : '';
     </div>
 </body>
 </html>
+
