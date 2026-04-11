@@ -177,7 +177,7 @@ function buildPageLink($pageNumber)
         <div class="nav-links">
             <a href="../../dashboard.php">📊 Dashboard</a>
             <a href="events.php" class="active">📅 Event Tracker</a>
-            <a href="../club_tracker/club.php">👥 Club Tracker</a>
+            <a href="../club_tracker/clubs.php">👥 Club Tracker</a>
             <a href="../merit_tracker/merit.php">⏱️ Merit Tracker</a>
             <a href="../achievement_tracker/achievements.php">🏆 Achievements</a>
         </div>
