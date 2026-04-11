@@ -39,6 +39,11 @@ function safe_total_count_admin($conn, $table_name)
     return 0;
 }
 
+function admin_history_file_url($filename)
+{
+    return "../cocurricular_system/achievement_tracker/uploads/" . rawurlencode($filename);
+}
+
 $total_students = 0;
 $stmt = mysqli_prepare($conn, "SELECT COUNT(*) AS total FROM users WHERE role = ?");
 $role = 'student';
@@ -56,7 +61,7 @@ $total_clubs = safe_total_count_admin($conn, $clubs_table);
 $total_merits = safe_total_count_admin($conn, $merits_table);
 $total_achievements = safe_total_count_admin($conn, $achievements_table);
 
-// NEW: Pending verification count
+// Pending verification count
 $pending_count = 0;
 $pending_sql = "SELECT COUNT(*) AS total FROM achievements WHERE status = 'Pending Verification'";
 $pending_result = mysqli_query($conn, $pending_sql);
@@ -65,13 +70,26 @@ if ($pending_result) {
     $pending_count = (int) ($pending_row['total'] ?? 0);
 }
 
-// NEW: Recent admin review history
-$history_sql = "SELECT a.title, a.status, a.reviewed_at, u.username
+// Detailed recent verification history
+$history_sql = "SELECT 
+                    a.id,
+                    a.title,
+                    a.category,
+                    a.level,
+                    a.status,
+                    a.achievement_date,
+                    a.reviewed_at,
+                    a.admin_remark,
+                    a.evidence_file,
+                    u.username,
+                    e.event_title
                 FROM achievements a
                 JOIN users u ON a.user_id = u.id
-                WHERE a.status IN ('Completed', 'Rejected') AND a.reviewed_at IS NOT NULL
+                LEFT JOIN events e ON a.event_id = e.id
+                WHERE a.status IN ('Completed', 'Rejected')
+                  AND a.reviewed_at IS NOT NULL
                 ORDER BY a.reviewed_at DESC
-                LIMIT 5";
+                LIMIT 8";
 $history_result = mysqli_query($conn, $history_sql);
 
 $events_expr = table_exists_admin($conn, $events_table)
@@ -134,17 +152,65 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
             background-color: #f8fafc;
             transition: background-color 0.2s ease;
         }
+
         .history-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 14px;
         }
+
         .history-item {
-            padding: 14px 16px;
+            padding: 16px 18px;
             border: 1px solid var(--border);
-            border-radius: 12px;
-            background: #fff;
+            border-radius: 14px;
+            background: white;
         }
+
+        .history-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .history-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 6px;
+        }
+
+        .history-meta {
+            color: var(--text-muted);
+            font-size: 0.92rem;
+            line-height: 1.7;
+        }
+
+        .history-remark {
+            margin-top: 10px;
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 12px;
+            color: #475569;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .history-link {
+            display: inline-block;
+            margin-top: 10px;
+            color: #4338ca;
+            font-weight: 700;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .history-link:hover {
+            text-decoration: underline;
+        }
+
         .status-completed {
             color: #166534;
             background: #dcfce7;
@@ -153,6 +219,7 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
             font-size: 0.8rem;
             font-weight: 700;
         }
+
         .status-rejected {
             color: #991b1b;
             background: #fee2e2;
@@ -160,6 +227,12 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
             border-radius: 999px;
             font-size: 0.8rem;
             font-weight: 700;
+        }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
         }
     </style>
 </head>
@@ -172,7 +245,7 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
 
         <div class="nav-links">
             <a href="admin_dashboard.php" class="active">👥 User Management</a>
-            <a href="verify_achievements.php">✅ Verification Achivement
+            <a href="verify_achievements.php">✅ Verification Inbox
                 <?php if ($pending_count > 0): ?>
                     <span style="background:#ef4444;color:white;padding:2px 8px;border-radius:999px;font-size:0.8rem;margin-left:6px;"><?php echo $pending_count; ?></span>
                 <?php endif; ?>
@@ -186,7 +259,7 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
         <div class="hero-glass" style="background: linear-gradient(120deg, #1e293b, #4338ca);">
             <p class="hero-label" style="color: #c7d2fe; margin-bottom: 0.5rem; display: block;">System Administrator</p>
             <h1>Welcome, <?php echo htmlspecialchars($username); ?> 🛡️</h1>
-            <p>Monitor all registered students, pending verification requests, and review history from one place.</p>
+            <p>Monitor all registered students, pending verification requests, and recent review activity from one place.</p>
         </div>
 
         <div class="stats-container">
@@ -268,9 +341,9 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
                                     (int) $row['total_achievements'];
                                 ?>
                                 <tr class="table-row-hover" style="border-bottom: 1px solid var(--border);">
-                                    <td style="padding: 1.2rem 1rem;">#<?php echo $row['id']; ?></td>
-                                    <td style="padding: 1.2rem 1rem;"><strong><?php echo htmlspecialchars($row['username']); ?></strong></td>
-                                    <td style="padding: 1.2rem 1rem;"><?php echo htmlspecialchars($row['email']); ?></td>
+                                    <td style="padding: 1.2rem 1rem; color: var(--text-muted); font-weight: 500;">#<?php echo $row['id']; ?></td>
+                                    <td style="padding: 1.2rem 1rem;"><strong style="color: var(--dark); font-size: 1.05rem;"><?php echo htmlspecialchars($row['username']); ?></strong></td>
+                                    <td style="padding: 1.2rem 1rem; color: var(--text-muted);"><?php echo htmlspecialchars($row['email']); ?></td>
                                     <td style="padding: 1.2rem 1rem; text-align: center;"><?php echo $row['total_events']; ?></td>
                                     <td style="padding: 1.2rem 1rem; text-align: center;"><?php echo $row['total_clubs']; ?></td>
                                     <td style="padding: 1.2rem 1rem; text-align: center;"><?php echo $row['total_merits']; ?></td>
@@ -280,7 +353,11 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="8" style="padding: 4rem 2rem; text-align: center;">No students found.</td>
+                                <td colspan="8" style="padding: 4rem 2rem; text-align: center;">
+                                    <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+                                    <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No students found</h3>
+                                    <p style="color: var(--text-muted);">Try another search keyword or wait until students register in the system.</p>
+                                </td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
@@ -297,13 +374,19 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
                 <div class="history-list">
                     <?php while ($item = mysqli_fetch_assoc($history_result)): ?>
                         <div class="history-item">
-                            <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+                            <div class="history-top">
                                 <div>
-                                    <strong><?php echo htmlspecialchars($item['title']); ?></strong>
-                                    <div style="color:var(--text-muted);margin-top:4px;">
-                                        Student: @<?php echo htmlspecialchars($item['username']); ?>
+                                    <div class="history-title"><?php echo htmlspecialchars($item['title']); ?></div>
+                                    <div class="history-meta">
+                                        <strong>Student:</strong> @<?php echo htmlspecialchars($item['username']); ?><br>
+                                        <strong>Related Event:</strong> <?php echo !empty($item['event_title']) ? htmlspecialchars($item['event_title']) : '-'; ?><br>
+                                        <strong>Category:</strong> <?php echo htmlspecialchars($item['category']); ?><br>
+                                        <strong>Level:</strong> <?php echo htmlspecialchars($item['level']); ?><br>
+                                        <strong>Achievement Date:</strong> <?php echo htmlspecialchars($item['achievement_date']); ?><br>
+                                        <strong>Reviewed At:</strong> <?php echo htmlspecialchars($item['reviewed_at']); ?>
                                     </div>
                                 </div>
+
                                 <div>
                                     <?php if ($item['status'] === 'Completed'): ?>
                                         <span class="status-completed">Approved</span>
@@ -312,9 +395,17 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
                                     <?php endif; ?>
                                 </div>
                             </div>
-                            <div style="color:var(--text-muted);margin-top:8px;">
-                                Reviewed at: <?php echo htmlspecialchars($item['reviewed_at']); ?>
+
+                            <div class="history-remark">
+                                <strong>Admin Remark:</strong><br>
+                                <?php echo !empty($item['admin_remark']) ? nl2br(htmlspecialchars($item['admin_remark'])) : '-'; ?>
                             </div>
+
+                            <?php if (!empty($item['evidence_file'])): ?>
+                                <a href="<?php echo htmlspecialchars(admin_history_file_url($item['evidence_file'])); ?>" target="_blank" class="history-link">
+                                    📎 View Evidence File
+                                </a>
+                            <?php endif; ?>
                         </div>
                     <?php endwhile; ?>
                 </div>
