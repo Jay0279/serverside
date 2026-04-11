@@ -122,7 +122,6 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
         <div class="nav-links">
             <a href="admin_dashboard.php" class="active">User Management</a>
             <a href="verify_achievements.php">Verification Inbox</a>
-            <a href="../dashboard.php">Student Dashboard</a>
         </div>
 
         <a href="../auth/logout.php" class="logout-link">Log Out</a>
