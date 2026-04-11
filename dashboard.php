@@ -70,6 +70,11 @@ if ($has_merits_table) {
     $params[] = $user_id;
     $types .= "i";
 }
+if ($has_clubs_table) {
+    $recent_queries[] = "SELECT 'club' AS module, '👥' AS icon, club_name AS title, membership_status AS status, join_date AS date FROM clubs WHERE user_id = ?";
+    $params[] = $user_id;
+    $types .= "i";
+}
 
 $recent_result = false;
 if (!empty($recent_queries)) {
@@ -155,7 +160,7 @@ if (!empty($recent_queries)) {
                 <div class="module-icon-v2">👥</div>
                 <h3>Club Tracker</h3>
                 <p>Manage club memberships, committee positions, and student roles.</p>
-                <a href="cocurricular_system/club_tracker/clubs.php" class="btn-disabled-module">In Progress by Teammates</a>
+                <a href="cocurricular_system/club_tracker/clubs.php" class="btn-open">Open Module</a>
             </div>
 
             <div class="module-card-v2">
