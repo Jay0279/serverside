@@ -63,7 +63,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <a href="../achievement_tracker/achievements.php">🏆 Achievements</a>
         </div>
 
-        <a href="../auth/logout.php" class="logout-link">Log Out</a>
+        <a href="../../auth/logout.php" class="logout-link">Log Out</a>
     </div>
 
     <div class="content">

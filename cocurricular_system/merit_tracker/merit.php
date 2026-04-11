@@ -192,7 +192,7 @@ $success = isset($_GET['success']) ? $_GET['success'] : '';
             <a href="../../dashboard.php">📊 Dashboard</a>
             <a href="../event_tracker/events.php">📅 Event Tracker</a>
             <a href="../club_tracker/clubs.php">👥 Club Tracker</a>
-            <a href="merit.php" class="active">⏱️ Merit Tracker</a>
+            <a href="../merit_tracker/merit.php">⏱️ Merit Tracker</a>
             <a href="../achievement_tracker/achievements.php">🏆 Achievements</a>
         </div>
 
