@@ -58,6 +58,7 @@ $total_achievements = safe_total_count_admin($conn, $achievements_table);
 
 // Pending counts
 $pending_events = 0;
+$pending_clubs = 0;
 $pending_achievements = 0;
 $pending_merits = 0;
 
@@ -65,6 +66,12 @@ $event_pending_sql = "SELECT COUNT(*) AS total FROM events WHERE event_status = 
 $event_pending_result = mysqli_query($conn, $event_pending_sql);
 if ($event_pending_result) {
     $pending_events = (int) (mysqli_fetch_assoc($event_pending_result)['total'] ?? 0);
+}
+
+$club_pending_sql = "SELECT COUNT(*) AS total FROM clubs WHERE review_status = 'Pending'";
+$club_pending_result = mysqli_query($conn, $club_pending_sql);
+if ($club_pending_result) {
+    $pending_clubs = (int) (mysqli_fetch_assoc($club_pending_result)['total'] ?? 0);
 }
 
 $achievement_pending_sql = "SELECT COUNT(*) AS total FROM achievements WHERE status = 'Pending Verification'";
@@ -79,7 +86,7 @@ if ($merit_pending_result) {
     $pending_merits = (int) (mysqli_fetch_assoc($merit_pending_result)['total'] ?? 0);
 }
 
-$total_pending = $pending_events + $pending_achievements + $pending_merits;
+$total_pending = $pending_events + $pending_clubs + $pending_achievements + $pending_merits;
 
 $events_expr = table_exists_admin($conn, $events_table)
     ? "(SELECT COUNT(*) FROM `$events_table` WHERE user_id = u.id)"
@@ -186,6 +193,12 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
                 <span class="stat-label" style="color: var(--text-muted); font-size: 0.8rem;">Student accounts in system</span>
             </div>
 
+            <div class="stat-box teal">
+                <span class="stat-label">Total Clubs</span>
+                <div class="stat-number"><?php echo $total_clubs; ?></div>
+                <span class="stat-label" style="color: var(--text-muted); font-size: 0.8rem;">All club records</span>
+            </div>
+
             <div class="stat-box green">
                 <span class="stat-label">Total Events</span>
                 <div class="stat-number"><?php echo $total_events; ?></div>
@@ -193,17 +206,23 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
             </div>
 
             <div class="stat-box orange">
-                <span class="stat-label">Total Merit Records</span>
-                <div class="stat-number"><?php echo $total_merits; ?></div>
-                <span class="stat-label" style="color: var(--text-muted); font-size: 0.8rem;">All merit records</span>
-            </div>
-
-            <div class="stat-box purple">
                 <span class="stat-label">Pending Verification</span>
                 <div class="stat-number"><?php echo $total_pending; ?></div>
                 <span class="stat-label" style="color: var(--text-muted); font-size: 0.8rem;">
                     <a href="verify_achievements.php" style="color:#4338ca;text-decoration:none;font-weight:700;">Open inbox</a>
                 </span>
+            </div>
+
+            <div class="stat-box purple">
+                <span class="stat-label">Total Achievements</span>
+                <div class="stat-number"><?php echo $total_achievements; ?></div>
+                <span class="stat-label" style="color: var(--text-muted); font-size: 0.8rem;">All achievement records</span>
+            </div>
+
+            <div class="stat-box blue">
+                <span class="stat-label">Total Merits</span>
+                <div class="stat-number"><?php echo $total_merits; ?></div>
+                <span class="stat-label" style="color: var(--text-muted); font-size: 0.8rem;">All merit records</span>
             </div>
         </div>
 
@@ -293,6 +312,13 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
                     <h3>Events Pending</h3>
                     <p><?php echo $pending_events; ?> event record(s) awaiting admin decision.</p>
                     <a href="verify_achievements.php?tab=events" class="btn-open">Open Events</a>
+                </div>
+
+                <div class="module-card-v2">
+                    <div class="module-icon-v2">👥</div>
+                    <h3>Clubs Pending</h3>
+                    <p><?php echo $pending_clubs; ?> club record(s) awaiting admin decision.</p>
+                    <a href="verify_achievements.php?tab=clubs" class="btn-open">Open Clubs</a>
                 </div>
 
                 <div class="module-card-v2">

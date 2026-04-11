@@ -17,11 +17,15 @@ $tab = $_GET['tab'] ?? 'events';
 
 // pending count for sidebar
 $pending_events = 0;
+$pending_clubs = 0;
 $pending_achievements = 0;
 $pending_merits = 0;
 
 $r1 = mysqli_query($conn, "SELECT COUNT(*) AS total FROM events WHERE event_status = 'Upcoming'");
 if ($r1) $pending_events = (int) (mysqli_fetch_assoc($r1)['total'] ?? 0);
+
+$rClub = mysqli_query($conn, "SELECT COUNT(*) AS total FROM clubs WHERE review_status = 'Pending'");
+if ($rClub) $pending_clubs = (int) (mysqli_fetch_assoc($rClub)['total'] ?? 0);
 
 $r2 = mysqli_query($conn, "SELECT COUNT(*) AS total FROM achievements WHERE status = 'Pending Verification'");
 if ($r2) $pending_achievements = (int) (mysqli_fetch_assoc($r2)['total'] ?? 0);
@@ -29,7 +33,7 @@ if ($r2) $pending_achievements = (int) (mysqli_fetch_assoc($r2)['total'] ?? 0);
 $r3 = mysqli_query($conn, "SELECT COUNT(*) AS total FROM merits WHERE status = 'Pending'");
 if ($r3) $pending_merits = (int) (mysqli_fetch_assoc($r3)['total'] ?? 0);
 
-$total_pending = $pending_events + $pending_achievements + $pending_merits;
+$total_pending = $pending_events + $pending_clubs + $pending_achievements + $pending_merits;
 
 // Event history
 $eventHistorySql = "
@@ -42,6 +46,17 @@ $eventHistorySql = "
     ORDER BY e.reviewed_at DESC
 ";
 $eventHistoryResult = mysqli_query($conn, $eventHistorySql);
+
+// Club history
+$clubHistorySql = "
+    SELECT c.*, u.username
+    FROM clubs c
+    JOIN users u ON c.user_id = u.id
+    WHERE c.review_status IN ('Approved', 'Rejected')
+      AND c.reviewed_at IS NOT NULL
+    ORDER BY c.reviewed_at DESC
+";
+$clubHistoryResult = mysqli_query($conn, $clubHistorySql);
 
 // Achievement history
 $achievementHistorySql = "
@@ -80,6 +95,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
             gap: 0.5rem;
             margin-bottom: 1.5rem;
             border-bottom: 2px solid var(--border, #e2e8f0);
+            flex-wrap: wrap;
         }
         .tab-btn {
             padding: 0.7rem 1.4rem;
@@ -194,11 +210,12 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
         <div class="hero-glass" style="background: linear-gradient(120deg, #1e293b, #4338ca);">
             <p class="hero-label" style="color: #c7d2fe; margin-bottom: 0.5rem; display: block;">Admin Review Records</p>
             <h1>View History 🕘</h1>
-            <p>See approved and rejected event, achievement, and merit records in one dedicated page.</p>
+            <p>See approved and rejected club, event, achievement, and merit records in one dedicated page.</p>
         </div>
 
         <div class="tab-bar">
             <a href="?tab=events" class="tab-btn <?php echo $tab === 'events' ? 'active' : ''; ?>">📅 Event History</a>
+            <a href="?tab=clubs" class="tab-btn <?php echo $tab === 'clubs' ? 'active' : ''; ?>">👥 Club History</a>
             <a href="?tab=achievements" class="tab-btn <?php echo $tab === 'achievements' ? 'active' : ''; ?>">🏆 Achievement History</a>
             <a href="?tab=merits" class="tab-btn <?php echo $tab === 'merits' ? 'active' : ''; ?>">⏱️ Merit History</a>
         </div>
@@ -245,6 +262,53 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
                     </div>
                 <?php else: ?>
                     <p style="color: var(--text-muted);">No event history yet.</p>
+                <?php endif; ?>
+
+            <?php elseif ($tab === 'clubs'): ?>
+                <div class="panel-header" style="margin-bottom: 1.5rem;">
+                    <h2 style="color: var(--dark);">Club Review History</h2>
+                </div>
+
+                <?php if ($clubHistoryResult && mysqli_num_rows($clubHistoryResult) > 0): ?>
+                    <div class="history-list">
+                        <?php while ($item = mysqli_fetch_assoc($clubHistoryResult)): ?>
+                            <div class="history-item">
+                                <div class="history-top">
+                                    <div>
+                                        <div class="history-title"><?php echo htmlspecialchars($item['club_name']); ?></div>
+                                        <div class="history-meta">
+                                            <strong>Student:</strong> @<?php echo htmlspecialchars($item['username']); ?><br>
+                                            <strong>Category:</strong> <?php echo htmlspecialchars($item['club_category']); ?><br>
+                                            <strong>Role:</strong> <?php echo htmlspecialchars($item['role_position']); ?><br>
+                                            <strong>Membership Status:</strong> <?php echo htmlspecialchars($item['membership_status']); ?><br>
+                                            <strong>Join Date:</strong> <?php echo htmlspecialchars($item['join_date']); ?><br>
+                                            <strong>End Date:</strong> <?php echo !empty($item['end_date']) ? htmlspecialchars($item['end_date']) : '-'; ?><br>
+                                            <strong>Reviewed At:</strong> <?php echo htmlspecialchars($item['reviewed_at']); ?>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <?php if ($item['review_status'] === 'Approved'): ?>
+                                            <span class="status-completed">Approved</span>
+                                        <?php else: ?>
+                                            <span class="status-rejected">Rejected</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <div class="history-remark">
+                                    <strong>Student Remarks:</strong><br>
+                                    <?php echo !empty($item['remarks']) ? nl2br(htmlspecialchars($item['remarks'])) : '-'; ?>
+                                </div>
+
+                                <div class="history-remark">
+                                    <strong>Admin Remark:</strong><br>
+                                    <?php echo !empty($item['admin_remark']) ? nl2br(htmlspecialchars($item['admin_remark'])) : '-'; ?>
+                                </div>
+                            </div>
+                        <?php endwhile; ?>
+                    </div>
+                <?php else: ?>
+                    <p style="color: var(--text-muted);">No club history yet.</p>
                 <?php endif; ?>
 
             <?php elseif ($tab === 'achievements'): ?>
@@ -310,6 +374,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
                                             <strong>Type:</strong> <?php echo htmlspecialchars($item['activity_type']); ?><br>
                                             <strong>Start Date:</strong> <?php echo htmlspecialchars($item['start_date']); ?><br>
                                             <strong>Hours:</strong> <?php echo htmlspecialchars($item['hours_contributed']); ?> hrs<br>
+                                            <strong>Merit Points:</strong> <?php echo htmlspecialchars($item['merit_points']); ?><br>
                                             <strong>Reviewed At:</strong> <?php echo htmlspecialchars($item['reviewed_at']); ?>
                                         </div>
                                     </div>
