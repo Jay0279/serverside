@@ -36,15 +36,15 @@ function fetchSingleValue($conn, $sql, $types, $params, $field)
     return $row[$field] ?? 0;
 }
 
-$q = trim($_GET['q'] ?? '');
-$status = trim($_GET['status'] ?? '');
+$q        = trim($_GET['q'] ?? '');
+$status   = trim($_GET['status'] ?? '');
 $category = trim($_GET['category'] ?? '');
-$page = max(1, (int)($_GET['page'] ?? 1));
-$perPage = 6;
-$offset = ($page - 1) * $perPage;
+$page     = max(1, (int) ($_GET['page'] ?? 1));
+$perPage  = 6;
+$offset   = ($page - 1) * $perPage;
 
 $categories = ['Seminar', 'Workshop', 'Competition', 'Talk', 'Volunteer', 'Sports', 'Club Activity', 'Other'];
-$statuses = ['Upcoming', 'Completed', 'Missed', 'Cancelled'];
+$statuses   = ['Upcoming', 'Completed', 'Missed', 'Cancelled'];
 
 $total_events = (int) fetchSingleValue(
     $conn,
@@ -78,64 +78,73 @@ $total_hours = (float) fetchSingleValue(
     'total_hours'
 );
 
-$where = ['user_id = ?'];
+$total_merit = (int) fetchSingleValue(
+    $conn,
+    "SELECT COALESCE(SUM(merit_points), 0) AS total_merit FROM events WHERE user_id = ? AND event_status = 'Completed'",
+    'i',
+    [$user_id],
+    'total_merit'
+);
+
+$where  = ['e.user_id = ?'];
 $params = [$user_id];
-$types = 'i';
+$types  = 'i';
 
 if ($q !== '') {
-    $where[] = '(event_title LIKE ? OR organizer LIKE ? OR venue LIKE ? OR remarks LIKE ?)';
+    $where[]     = '(e.event_title LIKE ? OR e.organizer LIKE ? OR e.venue LIKE ? OR e.remarks LIKE ?)';
     $searchValue = '%' . $q . '%';
-    $params[] = $searchValue;
-    $params[] = $searchValue;
-    $params[] = $searchValue;
-    $params[] = $searchValue;
-    $types .= 'ssss';
+    $params[]    = $searchValue;
+    $params[]    = $searchValue;
+    $params[]    = $searchValue;
+    $params[]    = $searchValue;
+    $types       .= 'ssss';
 }
 
 if ($status !== '' && in_array($status, $statuses, true)) {
-    $where[] = 'event_status = ?';
+    $where[]  = 'e.event_status = ?';
     $params[] = $status;
-    $types .= 's';
+    $types    .= 's';
 }
 
 if ($category !== '' && in_array($category, $categories, true)) {
-    $where[] = 'event_category = ?';
+    $where[]  = 'e.event_category = ?';
     $params[] = $category;
-    $types .= 's';
+    $types    .= 's';
 }
 
 $whereSql = 'WHERE ' . implode(' AND ', $where);
 
-$countSql = "SELECT COUNT(*) AS total FROM events $whereSql";
+$countSql  = "SELECT COUNT(*) AS total FROM events e $whereSql";
 $countStmt = mysqli_prepare($conn, $countSql);
 bindQueryParams($countStmt, $types, $params);
 mysqli_stmt_execute($countStmt);
 $countResult = mysqli_stmt_get_result($countStmt);
-$totalRows = (int) (mysqli_fetch_assoc($countResult)['total'] ?? 0);
+$totalRows   = (int) (mysqli_fetch_assoc($countResult)['total'] ?? 0);
 mysqli_stmt_close($countStmt);
 
 $totalPages = max(1, (int) ceil($totalRows / $perPage));
 if ($page > $totalPages) {
-    $page = $totalPages;
+    $page   = $totalPages;
     $offset = ($page - 1) * $perPage;
 }
 
-$listSql = "SELECT * FROM events $whereSql ORDER BY event_date DESC, start_time DESC LIMIT ? OFFSET ?";
+// JOIN with clubs to get club_name
+$listSql  = "SELECT e.*, c.club_name FROM events e LEFT JOIN clubs c ON e.club_id = c.club_id $whereSql ORDER BY e.event_date DESC, e.start_time DESC LIMIT ? OFFSET ?";
 $listStmt = mysqli_prepare($conn, $listSql);
 $listParams = $params;
 $listParams[] = $perPage;
 $listParams[] = $offset;
-$listTypes = $types . 'ii';
+$listTypes    = $types . 'ii';
 bindQueryParams($listStmt, $listTypes, $listParams);
 mysqli_stmt_execute($listStmt);
 $eventsResult = mysqli_stmt_get_result($listStmt);
 
 $flashMessage = '';
-$flashClass = 'success';
+$flashClass   = 'success';
 if (isset($_GET['msg'])) {
     switch ($_GET['msg']) {
         case 'added':
-            $flashMessage = 'Event record added successfully.';
+            $flashMessage = 'Event record added successfully. Merit record auto-created if status was Completed.';
             break;
         case 'updated':
             $flashMessage = 'Event record updated successfully.';
@@ -145,15 +154,15 @@ if (isset($_GET['msg'])) {
             break;
         case 'error':
             $flashMessage = 'Something went wrong. Please try again.';
-            $flashClass = 'error';
+            $flashClass   = 'error';
             break;
     }
 }
 
 function buildPageLink($pageNumber)
 {
-    $params = $_GET;
-    $params['page'] = $pageNumber;
+    $params          = $_GET;
+    $params['page']  = $pageNumber;
     return 'events.php?' . http_build_query($params);
 }
 ?>
@@ -222,6 +231,11 @@ function buildPageLink($pageNumber)
                 <h3><?php echo rtrim(rtrim(number_format($total_hours, 1), '0'), '.'); ?></h3>
                 <p class="stat-note">Contribution time logged</p>
             </div>
+            <div class="stat-card blue">
+                <span class="stat-title">Merit Points</span>
+                <h3><?php echo $total_merit; ?></h3>
+                <p class="stat-note">From completed events</p>
+            </div>
         </div>
 
         <div class="panel panel-tight">
@@ -235,7 +249,8 @@ function buildPageLink($pageNumber)
             <form method="GET" class="filter-grid">
                 <div class="input-group compact-group">
                     <label for="q">Search</label>
-                    <input type="text" id="q" name="q" placeholder="Search title, organizer, venue..." value="<?php echo htmlspecialchars($q); ?>">
+                    <input type="text" id="q" name="q" placeholder="Search title, organizer, venue..."
+                        value="<?php echo htmlspecialchars($q); ?>">
                 </div>
 
                 <div class="input-group compact-group">
@@ -243,7 +258,10 @@ function buildPageLink($pageNumber)
                     <select id="category" name="category">
                         <option value="">All Categories</option>
                         <?php foreach ($categories as $item): ?>
-                            <option value="<?php echo htmlspecialchars($item); ?>" <?php echo $category === $item ? 'selected' : ''; ?>><?php echo htmlspecialchars($item); ?></option>
+                            <option value="<?php echo htmlspecialchars($item); ?>"
+                                <?php echo $category === $item ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($item); ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -253,7 +271,10 @@ function buildPageLink($pageNumber)
                     <select id="status" name="status">
                         <option value="">All Statuses</option>
                         <?php foreach ($statuses as $item): ?>
-                            <option value="<?php echo htmlspecialchars($item); ?>" <?php echo $status === $item ? 'selected' : ''; ?>><?php echo htmlspecialchars($item); ?></option>
+                            <option value="<?php echo htmlspecialchars($item); ?>"
+                                <?php echo $status === $item ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($item); ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -291,14 +312,17 @@ function buildPageLink($pageNumber)
                                 <div><strong>Time:</strong>
                                     <?php
                                     $start = !empty($event['start_time']) ? date('g:i A', strtotime($event['start_time'])) : '-';
-                                    $end = !empty($event['end_time']) ? date('g:i A', strtotime($event['end_time'])) : '-';
-                                    echo htmlspecialchars($start . ($end !== '-' ? ' - ' . $end : ''));
+                                    $end   = !empty($event['end_time'])   ? date('g:i A', strtotime($event['end_time']))   : '-';
+                                    echo htmlspecialchars($start . ($end !== '-' ? ' – ' . $end : ''));
                                     ?>
                                 </div>
                                 <div><strong>Venue:</strong> <?php echo htmlspecialchars($event['venue'] ?: 'Not specified'); ?></div>
                                 <div><strong>Role:</strong> <?php echo htmlspecialchars($event['participation_role']); ?></div>
                                 <div><strong>Hours:</strong> <?php echo htmlspecialchars(rtrim(rtrim(number_format((float) $event['event_hours'], 1), '0'), '.')); ?></div>
                                 <div><strong>Merit:</strong> <?php echo (int) $event['merit_points']; ?> pts</div>
+                                <?php if (!empty($event['club_name'])): ?>
+                                    <div><strong>Club:</strong> <?php echo htmlspecialchars($event['club_name']); ?></div>
+                                <?php endif; ?>
                             </div>
 
                             <?php if (!empty($event['remarks'])): ?>
@@ -325,7 +349,10 @@ function buildPageLink($pageNumber)
                         <?php endif; ?>
 
                         <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-                            <a href="<?php echo htmlspecialchars(buildPageLink($i)); ?>" class="page-link <?php echo $i === $page ? 'active' : ''; ?>"><?php echo $i; ?></a>
+                            <a href="<?php echo htmlspecialchars(buildPageLink($i)); ?>"
+                                class="page-link <?php echo $i === $page ? 'active' : ''; ?>">
+                                <?php echo $i; ?>
+                            </a>
                         <?php endfor; ?>
 
                         <?php if ($page < $totalPages): ?>
@@ -333,6 +360,7 @@ function buildPageLink($pageNumber)
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
+
             <?php else: ?>
                 <div class="empty-state">
                     <div class="empty-icon">📅</div>
@@ -349,4 +377,3 @@ function buildPageLink($pageNumber)
 <?php
 mysqli_stmt_close($listStmt);
 ?>
-
