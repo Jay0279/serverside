@@ -6,29 +6,33 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
+$admin_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
 $flash = '';
 $flashClass = 'success';
 
-// =========================================
-// POST ACTIONS — Approve or Reject
-// =========================================
+function safe_evidence_url($filename)
+{
+    return "../cocurricular_system/achievement_tracker/uploads/" . rawurlencode($filename);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
-    $type   = $_POST['type'] ?? '';   // 'event' or 'achievement'
+    $type   = $_POST['type'] ?? '';
     $id     = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+    $admin_remark = trim($_POST['admin_remark'] ?? '');
 
-    if ($id > 0 && in_array($action, ['approve', 'reject'], true) && in_array($type, ['event', 'achievement'], true)) {
+    if ($id > 0 && in_array($action, ['approve', 'reject'], true) && in_array($type, ['event', 'achievement', 'merit'], true)) {
 
         if ($type === 'event') {
             if ($action === 'approve') {
-                // Mark event as Completed
-                $stmt = mysqli_prepare($conn, "UPDATE events SET event_status = 'Completed' WHERE id = ?");
-                mysqli_stmt_bind_param($stmt, 'i', $id);
+                $stmt = mysqli_prepare($conn, "UPDATE events 
+                    SET event_status = 'Completed', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
+                    WHERE id = ?");
+                mysqli_stmt_bind_param($stmt, 'isi', $admin_id, $admin_remark, $id);
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
 
-                // Auto-create merit record if not already exists
                 $eventStmt = mysqli_prepare($conn, "SELECT * FROM events WHERE id = ? LIMIT 1");
                 mysqli_stmt_bind_param($eventStmt, 'i', $id);
                 mysqli_stmt_execute($eventStmt);
@@ -44,12 +48,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     mysqli_stmt_close($checkStmt);
 
                     if (!$meritExists) {
-                        $meritStmt = mysqli_prepare($conn, "INSERT INTO merits (user_id, event_id, activity_title, activity_type, start_date, end_date, hours_contributed, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                        $meritDesc   = 'Auto-approved by Admin (Role: ' . $eventRow['participation_role'] . ')';
-                        $meritStatus = 'Approved';
+                        $meritStmt = mysqli_prepare($conn, "INSERT INTO merits 
+                            (user_id, event_id, activity_title, activity_type, start_date, end_date, hours_contributed, description, status, reviewed_at, reviewed_by, admin_remark) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Completed', NOW(), ?, ?)");
+                        $meritDesc = 'Auto-created from approved event (Role: ' . $eventRow['participation_role'] . ')';
                         mysqli_stmt_bind_param(
                             $meritStmt,
-                            'iissssdss',
+                            'iissssdsss',
                             $eventRow['user_id'],
                             $id,
                             $eventRow['event_title'],
@@ -58,7 +63,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $eventRow['event_date'],
                             $eventRow['event_hours'],
                             $meritDesc,
-                            $meritStatus
+                            $admin_id,
+                            $admin_remark
                         );
                         mysqli_stmt_execute($meritStmt);
                         mysqli_stmt_close($meritStmt);
@@ -67,38 +73,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $flash = '✅ Event approved and marked as Completed. Merit record created if applicable.';
             } else {
-                // Reject — mark as Cancelled
-                $stmt = mysqli_prepare($conn, "UPDATE events SET event_status = 'Cancelled' WHERE id = ?");
-                mysqli_stmt_bind_param($stmt, 'i', $id);
+                $stmt = mysqli_prepare($conn, "UPDATE events 
+                    SET event_status = 'Cancelled', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
+                    WHERE id = ?");
+                mysqli_stmt_bind_param($stmt, 'isi', $admin_id, $admin_remark, $id);
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
+
                 $flash = '❌ Event has been rejected and marked as Cancelled.';
                 $flashClass = 'error';
             }
-        } elseif ($type === 'achievement') {
+        }
+
+        elseif ($type === 'achievement') {
             if ($action === 'approve') {
-                $stmt = mysqli_prepare($conn, "UPDATE achievements SET status = 'Verified' WHERE id = ?");
-                mysqli_stmt_bind_param($stmt, 'i', $id);
+                $stmt = mysqli_prepare($conn, "UPDATE achievements 
+                    SET status = 'Completed', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
+                    WHERE id = ?");
+                mysqli_stmt_bind_param($stmt, 'isi', $admin_id, $admin_remark, $id);
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
-                $flash = '✅ Achievement verified and approved successfully.';
+                $flash = '✅ Achievement approved successfully.';
             } else {
-                $stmt = mysqli_prepare($conn, "UPDATE achievements SET status = 'Rejected' WHERE id = ?");
-                mysqli_stmt_bind_param($stmt, 'i', $id);
+                $stmt = mysqli_prepare($conn, "UPDATE achievements 
+                    SET status = 'Rejected', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
+                    WHERE id = ?");
+                mysqli_stmt_bind_param($stmt, 'isi', $admin_id, $admin_remark, $id);
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
                 $flash = '❌ Achievement has been rejected.';
                 $flashClass = 'error';
             }
         }
+
+        elseif ($type === 'merit') {
+            if ($action === 'approve') {
+                $stmt = mysqli_prepare($conn, "UPDATE merits 
+                    SET status = 'Completed', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
+                    WHERE merit_id = ?");
+                mysqli_stmt_bind_param($stmt, 'isi', $admin_id, $admin_remark, $id);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_close($stmt);
+                $flash = '✅ Merit record approved successfully.';
+            } else {
+                $stmt = mysqli_prepare($conn, "UPDATE merits 
+                    SET status = 'Rejected', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
+                    WHERE merit_id = ?");
+                mysqli_stmt_bind_param($stmt, 'isi', $admin_id, $admin_remark, $id);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_close($stmt);
+                $flash = '❌ Merit record has been rejected.';
+                $flashClass = 'error';
+            }
+        }
     }
 }
 
-// =========================================
-// FETCH PENDING EVENTS
-// Events that are NOT yet Completed, Missed, or Cancelled
-// i.e. status = 'Upcoming' — waiting for admin to confirm completed
-// =========================================
 $eventSql = "
     SELECT e.*, u.username, c.club_name
     FROM events e
@@ -107,44 +137,48 @@ $eventSql = "
     WHERE e.event_status = 'Upcoming'
     ORDER BY e.event_date ASC
 ";
-$eventResult     = mysqli_query($conn, $eventSql);
-$pending_events  = $eventResult ? mysqli_num_rows($eventResult) : 0;
+$eventResult = mysqli_query($conn, $eventSql);
+$pending_events = $eventResult ? mysqli_num_rows($eventResult) : 0;
 
-// =========================================
-// FETCH PENDING ACHIEVEMENTS
-// =========================================
 $achieveSql = "
-    SELECT a.*, u.username
+    SELECT a.*, u.username, e.event_title
     FROM achievements a
     JOIN users u ON a.user_id = u.id
+    LEFT JOIN events e ON a.event_id = e.id
     WHERE a.status = 'Pending Verification'
     ORDER BY a.achievement_date ASC
 ";
-$achieveResult       = mysqli_query($conn, $achieveSql);
+$achieveResult = mysqli_query($conn, $achieveSql);
 $pending_achievements = $achieveResult ? mysqli_num_rows($achieveResult) : 0;
 
-$total_pending = $pending_events + $pending_achievements;
+$meritSql = "
+    SELECT m.*, u.username, e.event_title
+    FROM merits m
+    JOIN users u ON m.user_id = u.id
+    LEFT JOIN events e ON m.event_id = e.id
+    WHERE m.status = 'Pending'
+    ORDER BY m.start_date ASC, m.merit_id DESC
+";
+$meritResult = mysqli_query($conn, $meritSql);
+$pending_merits = $meritResult ? mysqli_num_rows($meritResult) : 0;
 
-// Active tab
+$total_pending = $pending_events + $pending_achievements + $pending_merits;
 $tab = $_GET['tab'] ?? 'events';
 ?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Verification Inbox | CCMS Admin</title>
-    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../style.css?v=<?php echo time(); ?>">
     <style>
         .tab-bar {
             display: flex;
             gap: 0.5rem;
             margin-bottom: 1.5rem;
             border-bottom: 2px solid var(--border, #e2e8f0);
-            padding-bottom: 0;
         }
-
         .tab-btn {
             padding: 0.7rem 1.4rem;
             border: none;
@@ -156,18 +190,11 @@ $tab = $_GET['tab'] ?? 'events';
             border-bottom: 3px solid transparent;
             margin-bottom: -2px;
             text-decoration: none;
-            transition: 0.2s;
         }
-
         .tab-btn.active {
             color: #4338ca;
             border-bottom-color: #4338ca;
         }
-
-        .tab-btn:hover:not(.active) {
-            color: #1e293b;
-        }
-
         .badge {
             display: inline-block;
             background: #ef4444;
@@ -178,13 +205,12 @@ $tab = $_GET['tab'] ?? 'events';
             margin-left: 5px;
             vertical-align: middle;
         }
-
         .action-btns {
             display: flex;
             gap: 0.5rem;
             justify-content: center;
+            flex-wrap: wrap;
         }
-
         .btn-approve {
             background: #10b981;
             color: white;
@@ -195,11 +221,9 @@ $tab = $_GET['tab'] ?? 'events';
             cursor: pointer;
             font-size: 0.85rem;
         }
-
         .btn-approve:hover {
             background: #059669;
         }
-
         .btn-reject {
             background: #ef4444;
             color: white;
@@ -210,19 +234,35 @@ $tab = $_GET['tab'] ?? 'events';
             cursor: pointer;
             font-size: 0.85rem;
         }
-
         .btn-reject:hover {
             background: #dc2626;
         }
-
         .info-row {
             font-size: 0.82rem;
             color: #64748b;
             margin-top: 3px;
         }
+        .remark-box {
+            width: 100%;
+            min-height: 70px;
+            resize: vertical;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.7rem;
+            margin-bottom: 0.6rem;
+        }
+        .evidence-link {
+            background: #e0e7ff;
+            color: #4338ca;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 700;
+            display: inline-block;
+        }
     </style>
 </head>
-
 <body class="main-body">
     <div class="sidebar" style="background: linear-gradient(180deg, #1e1b4b, #312e81);">
         <div>
@@ -238,6 +278,7 @@ $tab = $_GET['tab'] ?? 'events';
                     <span class="badge"><?php echo $total_pending; ?></span>
                 <?php endif; ?>
             </a>
+            <a href="view_history.php">🕘 View History</a>
         </div>
 
         <a href="../auth/logout.php" class="logout-link">Log Out</a>
@@ -249,7 +290,7 @@ $tab = $_GET['tab'] ?? 'events';
                 <p class="hero-label" style="color: #c7d2fe;">Action Required</p>
                 <h1 style="color: white;">Verification Inbox 📥</h1>
                 <p style="opacity: 0.9; margin-top: 0.5rem;">
-                    Review and approve student event completions and achievement submissions.
+                    Review and approve student event completions, achievements, and merits.
                     <strong style="color: #fbbf24;"><?php echo $total_pending; ?> item(s)</strong> awaiting your action.
                 </p>
             </div>
@@ -259,56 +300,53 @@ $tab = $_GET['tab'] ?? 'events';
             <div class="alert <?php echo $flashClass; ?>"><?php echo htmlspecialchars($flash); ?></div>
         <?php endif; ?>
 
-        <!-- TAB BAR -->
         <div class="tab-bar">
             <a href="?tab=events" class="tab-btn <?php echo $tab === 'events' ? 'active' : ''; ?>">
                 📅 Pending Events
-                <?php if ($pending_events > 0): ?>
-                    <span class="badge"><?php echo $pending_events; ?></span>
-                <?php endif; ?>
+                <?php if ($pending_events > 0): ?><span class="badge"><?php echo $pending_events; ?></span><?php endif; ?>
             </a>
             <a href="?tab=achievements" class="tab-btn <?php echo $tab === 'achievements' ? 'active' : ''; ?>">
                 🏆 Pending Achievements
-                <?php if ($pending_achievements > 0): ?>
-                    <span class="badge"><?php echo $pending_achievements; ?></span>
-                <?php endif; ?>
+                <?php if ($pending_achievements > 0): ?><span class="badge"><?php echo $pending_achievements; ?></span><?php endif; ?>
+            </a>
+            <a href="?tab=merits" class="tab-btn <?php echo $tab === 'merits' ? 'active' : ''; ?>">
+                ⏱️ Pending Merits
+                <?php if ($pending_merits > 0): ?><span class="badge"><?php echo $pending_merits; ?></span><?php endif; ?>
             </a>
         </div>
 
-        <!-- ===================== EVENTS TAB ===================== -->
         <?php if ($tab === 'events'): ?>
             <div class="panel">
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
                         <h2 style="color: var(--dark);">Upcoming Events Pending Approval (<?php echo $pending_events; ?>)</h2>
                         <p style="color: #64748b; font-size: 0.9rem; margin-top: 4px;">
-                            These events are submitted by students as "Upcoming". Approve to mark them as <strong>Completed</strong> (and auto-create merit), or reject to mark as <strong>Cancelled</strong>.
+                            Approve to mark as <strong>Completed</strong>, or reject to mark as <strong>Cancelled</strong>.
                         </p>
                     </div>
                 </div>
 
                 <?php if ($pending_events > 0): ?>
                     <div class="table-wrapper" style="overflow-x: auto; background: white; border-radius: 12px; border: 1px solid var(--border);">
-                        <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 900px;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 1050px;">
                             <thead style="background: #f8fafc; border-bottom: 2px solid var(--border);">
                                 <tr>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Student</th>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Event</th>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Date</th>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Role</th>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Hours</th>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Merit Pts</th>
-                                    <th style="padding: 1rem; text-align: center; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Action</th>
+                                    <th style="padding: 1rem;">Student</th>
+                                    <th style="padding: 1rem;">Event</th>
+                                    <th style="padding: 1rem;">Date</th>
+                                    <th style="padding: 1rem;">Role</th>
+                                    <th style="padding: 1rem;">Hours</th>
+                                    <th style="padding: 1rem;">Merit Pts</th>
+                                    <th style="padding: 1rem;">Remark</th>
+                                    <th style="padding: 1rem; text-align: center;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php while ($row = mysqli_fetch_assoc($eventResult)): ?>
                                     <tr style="border-bottom: 1px solid var(--border);">
+                                        <td style="padding: 1rem;"><strong>@<?php echo htmlspecialchars($row['username']); ?></strong></td>
                                         <td style="padding: 1rem;">
-                                            <strong>@<?php echo htmlspecialchars($row['username']); ?></strong>
-                                        </td>
-                                        <td style="padding: 1rem;">
-                                            <strong style="color: #1e293b;"><?php echo htmlspecialchars($row['event_title']); ?></strong>
+                                            <strong><?php echo htmlspecialchars($row['event_title']); ?></strong>
                                             <div class="info-row">
                                                 <?php echo htmlspecialchars($row['event_category']); ?>
                                                 <?php if (!empty($row['club_name'])): ?>
@@ -317,36 +355,22 @@ $tab = $_GET['tab'] ?? 'events';
                                             </div>
                                             <div class="info-row"><?php echo htmlspecialchars($row['organizer']); ?></div>
                                         </td>
-                                        <td style="padding: 1rem; color: #475569;">
-                                            <?php echo date('d M Y', strtotime($row['event_date'])); ?>
-                                        </td>
-                                        <td style="padding: 1rem;">
-                                            <span style="background: #eff6ff; color: #2563eb; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600;">
-                                                <?php echo htmlspecialchars($row['participation_role']); ?>
-                                            </span>
-                                        </td>
-                                        <td style="padding: 1rem; font-weight: 700; color: #0f172a;">
-                                            <?php echo rtrim(rtrim(number_format((float)$row['event_hours'], 1), '0'), '.'); ?> hrs
-                                        </td>
-                                        <td style="padding: 1rem; font-weight: 700; color: #7c3aed;">
-                                            <?php echo (int)$row['merit_points']; ?> pts
-                                        </td>
-                                        <td style="padding: 1rem;">
-                                            <div class="action-btns">
-                                                <form method="POST" onsubmit="return confirm('Approve this event as Completed?');">
+                                        <td style="padding: 1rem;"><?php echo date('d M Y', strtotime($row['event_date'])); ?></td>
+                                        <td style="padding: 1rem;"><?php echo htmlspecialchars($row['participation_role']); ?></td>
+                                        <td style="padding: 1rem;"><?php echo rtrim(rtrim(number_format((float)$row['event_hours'], 1), '0'), '.'); ?> hrs</td>
+                                        <td style="padding: 1rem;"><?php echo (int)$row['merit_points']; ?> pts</td>
+                                        <td style="padding: 1rem; min-width: 220px;">
+                                            <form method="POST">
+                                                <textarea name="admin_remark" class="remark-box" placeholder="Optional admin remark..."></textarea>
+                                                <div class="action-btns">
                                                     <input type="hidden" name="type" value="event">
-                                                    <input type="hidden" name="action" value="approve">
                                                     <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
-                                                    <button type="submit" class="btn-approve">✅ Approve</button>
-                                                </form>
-                                                <form method="POST" onsubmit="return confirm('Reject this event?');">
-                                                    <input type="hidden" name="type" value="event">
-                                                    <input type="hidden" name="action" value="reject">
-                                                    <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
-                                                    <button type="submit" class="btn-reject">❌ Reject</button>
-                                                </form>
-                                            </div>
+                                                    <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this event?');">✅ Approve</button>
+                                                    <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this event?');">❌ Reject</button>
+                                                </div>
+                                            </form>
                                         </td>
+                                        <td style="padding: 1rem; text-align: center; color:#64748b;">Use remark column</td>
                                     </tr>
                                 <?php endwhile; ?>
                             </tbody>
@@ -356,85 +380,71 @@ $tab = $_GET['tab'] ?? 'events';
                     <div style="text-align: center; padding: 3rem 0;">
                         <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
                         <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No Pending Events!</h3>
-                        <p style="color: #64748b;">All student events have been reviewed. Check back later.</p>
+                        <p style="color: #64748b;">All student events have been reviewed.</p>
                     </div>
                 <?php endif; ?>
             </div>
 
-            <!-- ===================== ACHIEVEMENTS TAB ===================== -->
         <?php elseif ($tab === 'achievements'): ?>
             <div class="panel">
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
-                        <h2 style="color: var(--dark);">Achievement Submissions Pending Approval (<?php echo $pending_achievements; ?>)</h2>
+                        <h2 style="color: var(--dark);">Pending Achievements (<?php echo $pending_achievements; ?>)</h2>
                         <p style="color: #64748b; font-size: 0.9rem; margin-top: 4px;">
-                            Review uploaded evidence before approving. Approved achievements will be marked as <strong>Verified</strong>. Rejected ones will be marked as <strong>Rejected</strong>.
+                            Review uploaded evidence before approving or rejecting.
                         </p>
                     </div>
                 </div>
 
                 <?php if ($pending_achievements > 0): ?>
                     <div class="table-wrapper" style="overflow-x: auto; background: white; border-radius: 12px; border: 1px solid var(--border);">
-                        <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 800px;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 1100px;">
                             <thead style="background: #f8fafc; border-bottom: 2px solid var(--border);">
                                 <tr>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Student</th>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Achievement</th>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Category</th>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Level</th>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Date</th>
-                                    <th style="padding: 1rem; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Evidence</th>
-                                    <th style="padding: 1rem; text-align: center; color: #64748b; font-size: 0.85rem; text-transform: uppercase;">Action</th>
+                                    <th style="padding: 1rem;">Student</th>
+                                    <th style="padding: 1rem;">Achievement</th>
+                                    <th style="padding: 1rem;">Related Event</th>
+                                    <th style="padding: 1rem;">Category</th>
+                                    <th style="padding: 1rem;">Level</th>
+                                    <th style="padding: 1rem;">Date</th>
+                                    <th style="padding: 1rem;">Evidence</th>
+                                    <th style="padding: 1rem;">Remark</th>
+                                    <th style="padding: 1rem; text-align: center;">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php while ($row = mysqli_fetch_assoc($achieveResult)): ?>
                                     <tr style="border-bottom: 1px solid var(--border);">
+                                        <td style="padding: 1rem;"><strong>@<?php echo htmlspecialchars($row['username']); ?></strong></td>
                                         <td style="padding: 1rem;">
-                                            <strong>@<?php echo htmlspecialchars($row['username']); ?></strong>
-                                        </td>
-                                        <td style="padding: 1rem;">
-                                            <strong style="color: #1e293b;"><?php echo htmlspecialchars($row['title']); ?></strong>
+                                            <strong><?php echo htmlspecialchars($row['title']); ?></strong>
                                             <?php if (!empty($row['description'])): ?>
                                                 <div class="info-row"><?php echo htmlspecialchars(mb_strimwidth($row['description'], 0, 60, '...')); ?></div>
                                             <?php endif; ?>
                                         </td>
-                                        <td style="padding: 1rem; color: #475569;"><?php echo htmlspecialchars($row['category']); ?></td>
-                                        <td style="padding: 1rem;">
-                                            <span style="background: #f5f3ff; color: #7c3aed; padding: 0.25rem 0.6rem; border-radius: 999px; font-size: 0.82rem; font-weight: 600;">
-                                                <?php echo htmlspecialchars($row['level']); ?>
-                                            </span>
-                                        </td>
-                                        <td style="padding: 1rem; color: #475569;">
-                                            <?php echo date('d M Y', strtotime($row['achievement_date'])); ?>
-                                        </td>
+                                        <td style="padding: 1rem;"><?php echo !empty($row['event_title']) ? htmlspecialchars($row['event_title']) : '-'; ?></td>
+                                        <td style="padding: 1rem;"><?php echo htmlspecialchars($row['category']); ?></td>
+                                        <td style="padding: 1rem;"><?php echo htmlspecialchars($row['level']); ?></td>
+                                        <td style="padding: 1rem;"><?php echo date('d M Y', strtotime($row['achievement_date'])); ?></td>
                                         <td style="padding: 1rem;">
                                             <?php if (!empty($row['evidence_file'])): ?>
-                                                <a href="../achievement_tracker/uploads/<?php echo htmlspecialchars($row['evidence_file']); ?>"
-                                                    target="_blank"
-                                                    style="background: #e0e7ff; color: #4338ca; padding: 0.4rem 0.8rem; border-radius: 8px; text-decoration: none; font-size: 0.82rem; font-weight: 700; display: inline-block;">
-                                                    🔍 View
-                                                </a>
+                                                <a href="<?php echo htmlspecialchars(safe_evidence_url($row['evidence_file'])); ?>" target="_blank" class="evidence-link">🔍 View</a>
                                             <?php else: ?>
                                                 <span style="color: #ef4444; font-size: 0.82rem; font-weight: 700;">No file</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td style="padding: 1rem;">
-                                            <div class="action-btns">
-                                                <form method="POST" onsubmit="return confirm('Approve this achievement?');">
+                                        <td style="padding: 1rem; min-width: 220px;">
+                                            <form method="POST">
+                                                <textarea name="admin_remark" class="remark-box" placeholder="Optional admin remark..."></textarea>
+                                                <div class="action-btns">
                                                     <input type="hidden" name="type" value="achievement">
-                                                    <input type="hidden" name="action" value="approve">
                                                     <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
-                                                    <button type="submit" class="btn-approve">✅ Approve</button>
-                                                </form>
-                                                <form method="POST" onsubmit="return confirm('Reject this achievement?');">
-                                                    <input type="hidden" name="type" value="achievement">
-                                                    <input type="hidden" name="action" value="reject">
-                                                    <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
-                                                    <button type="submit" class="btn-reject">❌ Reject</button>
-                                                </form>
-                                            </div>
+                                                    <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this achievement?');">✅ Approve</button>
+                                                    <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this achievement?');">❌ Reject</button>
+                                                </div>
+                                            </form>
                                         </td>
+                                        <td style="padding: 1rem; text-align:center; color:#64748b;">Use remark column</td>
                                     </tr>
                                 <?php endwhile; ?>
                             </tbody>
@@ -444,13 +454,76 @@ $tab = $_GET['tab'] ?? 'events';
                     <div style="text-align: center; padding: 3rem 0;">
                         <div style="font-size: 3rem; margin-bottom: 1rem;">🏆</div>
                         <h3 style="color: var(--dark); margin-bottom: 0.5rem;">All Caught Up!</h3>
-                        <p style="color: #64748b;">There are no pending achievements waiting for verification.</p>
+                        <p style="color: #64748b;">There are no pending achievements.</p>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+        <?php elseif ($tab === 'merits'): ?>
+            <div class="panel">
+                <div class="panel-header" style="margin-bottom: 1.5rem;">
+                    <div>
+                        <h2 style="color: var(--dark);">Pending Merits (<?php echo $pending_merits; ?>)</h2>
+                        <p style="color: #64748b; font-size: 0.9rem; margin-top: 4px;">
+                            Approve merit hours after reviewing activity details.
+                        </p>
+                    </div>
+                </div>
+
+                <?php if ($pending_merits > 0): ?>
+                    <div class="table-wrapper" style="overflow-x: auto; background: white; border-radius: 12px; border: 1px solid var(--border);">
+                        <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 1150px;">
+                            <thead style="background: #f8fafc; border-bottom: 2px solid var(--border);">
+                                <tr>
+                                    <th style="padding: 1rem;">Student</th>
+                                    <th style="padding: 1rem;">Activity Title</th>
+                                    <th style="padding: 1rem;">Type</th>
+                                    <th style="padding: 1rem;">Related Event</th>
+                                    <th style="padding: 1rem;">Start Date</th>
+                                    <th style="padding: 1rem;">Hours</th>
+                                    <th style="padding: 1rem;">Description</th>
+                                    <th style="padding: 1rem;">Remark</th>
+                                    <th style="padding: 1rem; text-align: center;">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php while ($row = mysqli_fetch_assoc($meritResult)): ?>
+                                    <tr style="border-bottom: 1px solid var(--border);">
+                                        <td style="padding: 1rem;"><strong>@<?php echo htmlspecialchars($row['username']); ?></strong></td>
+                                        <td style="padding: 1rem;"><strong><?php echo htmlspecialchars($row['activity_title']); ?></strong></td>
+                                        <td style="padding: 1rem;"><?php echo htmlspecialchars($row['activity_type']); ?></td>
+                                        <td style="padding: 1rem;"><?php echo !empty($row['event_title']) ? htmlspecialchars($row['event_title']) : '-'; ?></td>
+                                        <td style="padding: 1rem;"><?php echo date('d M Y', strtotime($row['start_date'])); ?></td>
+                                        <td style="padding: 1rem;"><?php echo htmlspecialchars($row['hours_contributed']); ?> hrs</td>
+                                        <td style="padding: 1rem; color:#64748b;">
+                                            <?php echo !empty($row['description']) ? nl2br(htmlspecialchars(mb_strimwidth($row['description'], 0, 70, '...'))) : '-'; ?>
+                                        </td>
+                                        <td style="padding: 1rem; min-width: 220px;">
+                                            <form method="POST">
+                                                <textarea name="admin_remark" class="remark-box" placeholder="Optional admin remark..."></textarea>
+                                                <div class="action-btns">
+                                                    <input type="hidden" name="type" value="merit">
+                                                    <input type="hidden" name="id" value="<?php echo (int)$row['merit_id']; ?>">
+                                                    <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this merit record?');">✅ Approve</button>
+                                                    <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this merit record?');">❌ Reject</button>
+                                                </div>
+                                            </form>
+                                        </td>
+                                        <td style="padding: 1rem; text-align:center; color:#64748b;">Use remark column</td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php else: ?>
+                    <div style="text-align: center; padding: 3rem 0;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">⏱️</div>
+                        <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No Pending Merits!</h3>
+                        <p style="color: #64748b;">All merit records have been reviewed.</p>
                     </div>
                 <?php endif; ?>
             </div>
         <?php endif; ?>
-
     </div>
 </body>
-
 </html>
