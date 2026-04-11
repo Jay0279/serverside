@@ -34,7 +34,7 @@ $row = mysqli_fetch_assoc($result);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View Club | CCMS</title>
-    <link rel="stylesheet" href="../../style.css">
+    <link rel="stylesheet" href="../../style.css?v=<?php echo time(); ?>">
 </head>
 <body class="main-body">
     <div class="sidebar">
@@ -55,32 +55,32 @@ $row = mysqli_fetch_assoc($result);
     </div>
 
     <div class="content">
-        <div class="hero-banner" style="margin-bottom: 2rem;">
+        <div class="hero-banner">
             <div>
                 <p class="hero-label">Club Module</p>
                 <h1>Club Record Details 👁</h1>
-                <p class="hero-text" style="color: var(--text-muted);">View your club membership information.</p>
+                <p class="hero-text">View your club membership information.</p>
             </div>
         </div>
 
-        <div class="panel" style="max-width: 850px;">
+        <div class="panel" style="max-width: 900px;">
             <div class="panel-header">
-                <h2 style="color: var(--dark);"><?php echo htmlspecialchars($row['club_name']); ?></h2>
+                <h2><?php echo htmlspecialchars($row['club_name']); ?></h2>
             </div>
 
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                <div><strong>Club Name:</strong><br><?php echo htmlspecialchars($row['club_name']); ?></div>
-                <div><strong>Category:</strong><br><?php echo htmlspecialchars($row['club_category']); ?></div>
-                <div><strong>Role / Position:</strong><br><?php echo htmlspecialchars($row['role_position']); ?></div>
-                <div><strong>Status:</strong><br><?php echo htmlspecialchars($row['membership_status']); ?></div>
-                <div><strong>Join Date:</strong><br><?php echo htmlspecialchars($row['join_date']); ?></div>
-                <div><strong>End Date:</strong><br><?php echo !empty($row['end_date']) ? htmlspecialchars($row['end_date']) : '-'; ?></div>
-                <div style="grid-column: span 2;"><strong>Remarks:</strong><br><?php echo !empty($row['remarks']) ? nl2br(htmlspecialchars($row['remarks'])) : '-'; ?></div>
+            <div class="details-grid">
+                <div class="details-box"><strong>Club Name:</strong><br><?php echo htmlspecialchars($row['club_name']); ?></div>
+                <div class="details-box"><strong>Category:</strong><br><?php echo htmlspecialchars($row['club_category']); ?></div>
+                <div class="details-box"><strong>Role / Position:</strong><br><?php echo htmlspecialchars($row['role_position']); ?></div>
+                <div class="details-box"><strong>Status:</strong><br><?php echo htmlspecialchars($row['membership_status']); ?></div>
+                <div class="details-box"><strong>Join Date:</strong><br><?php echo htmlspecialchars($row['join_date']); ?></div>
+                <div class="details-box"><strong>End Date:</strong><br><?php echo !empty($row['end_date']) ? htmlspecialchars($row['end_date']) : '-'; ?></div>
+                <div class="details-box full-span"><strong>Remarks:</strong><br><?php echo !empty($row['remarks']) ? nl2br(htmlspecialchars($row['remarks'])) : '-'; ?></div>
             </div>
 
-            <div style="margin-top: 1.5rem; display:flex; gap:10px;">
-                <a href="edit_club.php?id=<?php echo $row['club_id']; ?>" class="btn-primary" style="text-decoration:none;">Edit Record</a>
-                <a href="clubs.php" class="btn-disabled" style="text-decoration:none;">Back</a>
+            <div class="module-actions">
+                <a href="edit_club.php?id=<?php echo $row['club_id']; ?>" class="btn-primary">Edit Record</a>
+                <a href="clubs.php" class="btn-secondary">Back</a>
             </div>
         </div>
     </div>

@@ -7,8 +7,6 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $user_id = $_SESSION['user_id'];
-$username = $_SESSION['username'];
-
 $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
@@ -45,7 +43,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Club | CCMS</title>
-    <link rel="stylesheet" href="../../style.css">
+    <link rel="stylesheet" href="../../style.css?v=<?php echo time(); ?>">
 </head>
 <body class="main-body">
     <div class="sidebar">
@@ -66,36 +64,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 
     <div class="content">
-        <div class="hero-banner" style="margin-bottom: 2rem;">
+        <div class="hero-banner">
             <div>
                 <p class="hero-label">Club Module</p>
                 <h1>Add Club Record 👥</h1>
-                <p class="hero-text" style="color: var(--text-muted);">Record your club or society membership details.</p>
+                <p class="hero-text">Record your club or society membership details.</p>
             </div>
         </div>
 
-        <div class="panel" style="max-width: 850px;">
+        <div class="panel" style="max-width: 900px;">
             <div class="panel-header">
-                <h2 style="color: var(--dark);">New Club Record</h2>
+                <h2>New Club Record</h2>
             </div>
 
             <?php if (!empty($error)): ?>
-                <div style="background:#fee2e2; color:#991b1b; padding:12px 16px; border-radius:10px; margin-bottom:1rem;">
-                    <?php echo htmlspecialchars($error); ?>
-                </div>
+                <div class="alert-error-box"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
 
             <form method="POST">
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-                    <div>
+                <div class="form-grid-2">
+                    <div class="input-group">
                         <label>Club Name *</label>
-                        <input type="text" name="club_name" required style="width:100%; padding:0.8rem; border-radius:10px; border:1px solid var(--border);"
+                        <input class="module-input" type="text" name="club_name" required
                                value="<?php echo isset($_POST['club_name']) ? htmlspecialchars($_POST['club_name']) : ''; ?>">
                     </div>
 
-                    <div>
+                    <div class="input-group">
                         <label>Club Category *</label>
-                        <select name="club_category" required style="width:100%; padding:0.8rem; border-radius:10px; border:1px solid var(--border);">
+                        <select class="module-select" name="club_category" required>
                             <option value="">Select Category</option>
                             <option value="Academic" <?php if (isset($_POST['club_category']) && $_POST['club_category'] == "Academic") echo "selected"; ?>>Academic</option>
                             <option value="Sports" <?php if (isset($_POST['club_category']) && $_POST['club_category'] == "Sports") echo "selected"; ?>>Sports</option>
@@ -106,15 +102,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         </select>
                     </div>
 
-                    <div>
+                    <div class="input-group">
                         <label>Role / Position *</label>
-                        <input type="text" name="role_position" required style="width:100%; padding:0.8rem; border-radius:10px; border:1px solid var(--border);"
+                        <input class="module-input" type="text" name="role_position" required
                                value="<?php echo isset($_POST['role_position']) ? htmlspecialchars($_POST['role_position']) : ''; ?>">
                     </div>
 
-                    <div>
+                    <div class="input-group">
                         <label>Membership Status *</label>
-                        <select name="membership_status" required style="width:100%; padding:0.8rem; border-radius:10px; border:1px solid var(--border);">
+                        <select class="module-select" name="membership_status" required>
                             <option value="">Select Status</option>
                             <option value="Active" <?php if (isset($_POST['membership_status']) && $_POST['membership_status'] == "Active") echo "selected"; ?>>Active</option>
                             <option value="Inactive" <?php if (isset($_POST['membership_status']) && $_POST['membership_status'] == "Inactive") echo "selected"; ?>>Inactive</option>
@@ -122,27 +118,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         </select>
                     </div>
 
-                    <div>
+                    <div class="input-group">
                         <label>Join Date *</label>
-                        <input type="date" name="join_date" required style="width:100%; padding:0.8rem; border-radius:10px; border:1px solid var(--border);"
+                        <input class="module-input" type="date" name="join_date" required
                                value="<?php echo isset($_POST['join_date']) ? htmlspecialchars($_POST['join_date']) : ''; ?>">
                     </div>
 
-                    <div>
+                    <div class="input-group">
                         <label>End Date</label>
-                        <input type="date" name="end_date" style="width:100%; padding:0.8rem; border-radius:10px; border:1px solid var(--border);"
+                        <input class="module-input" type="date" name="end_date"
                                value="<?php echo isset($_POST['end_date']) ? htmlspecialchars($_POST['end_date']) : ''; ?>">
                     </div>
 
-                    <div style="grid-column: span 2;">
+                    <div class="input-group full-span">
                         <label>Remarks</label>
-                        <textarea name="remarks" rows="5" style="width:100%; padding:0.8rem; border-radius:10px; border:1px solid var(--border);"><?php echo isset($_POST['remarks']) ? htmlspecialchars($_POST['remarks']) : ''; ?></textarea>
+                        <textarea class="module-textarea" name="remarks"><?php echo isset($_POST['remarks']) ? htmlspecialchars($_POST['remarks']) : ''; ?></textarea>
                     </div>
                 </div>
 
-                <div style="margin-top: 1.5rem; display:flex; gap:10px;">
+                <div class="module-actions">
                     <button type="submit" class="btn-primary">Save Record</button>
-                    <a href="clubs.php" class="btn-disabled" style="text-decoration:none;">Cancel</a>
+                    <a href="clubs.php" class="btn-secondary">Cancel</a>
                 </div>
             </form>
         </div>
