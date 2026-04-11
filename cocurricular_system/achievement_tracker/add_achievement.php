@@ -36,7 +36,6 @@ if (isset($_POST['submit'])) {
     $status = "Pending Verification";
     $evidence_file = null;
 
-    // Validate event belongs to user and is completed
     if ($event_id > 0) {
         $check_event_sql = "SELECT id FROM events WHERE id = ? AND user_id = ? AND event_status = 'Completed' LIMIT 1";
         $check_event_stmt = mysqli_prepare($conn, $check_event_sql);
@@ -53,7 +52,6 @@ if (isset($_POST['submit'])) {
         $error = "Please select a related completed event.";
     }
 
-    // File upload
     if (empty($error) && isset($_FILES['evidence']) && $_FILES['evidence']['error'] == UPLOAD_ERR_OK) {
         if ($_FILES['evidence']['size'] > 2 * 1024 * 1024) {
             $error = "File size must not exceed 2MB.";
@@ -61,7 +59,7 @@ if (isset($_POST['submit'])) {
             $allowed_extensions = ['jpg', 'jpeg', 'png', 'pdf'];
             $file_extension = strtolower(pathinfo($_FILES['evidence']['name'], PATHINFO_EXTENSION));
 
-            if (in_array($file_extension, $allowed_extensions)) {
+            if (in_array($file_extension, $allowed_extensions, true)) {
                 if (!is_dir("uploads")) {
                     mkdir("uploads", 0777, true);
                 }
@@ -232,7 +230,6 @@ if (isset($_POST['submit'])) {
                                         data-date="<?php echo htmlspecialchars($event['event_date'], ENT_QUOTES); ?>"
                                         data-role="<?php echo htmlspecialchars($event['participation_role'], ENT_QUOTES); ?>"
                                         data-organizer="<?php echo htmlspecialchars($event['organizer'], ENT_QUOTES); ?>"
-                                        data-merit="<?php echo (int) $event['merit_points']; ?>"
                                         <?php echo (isset($_POST['event_id']) && $_POST['event_id'] == $event['id']) ? 'selected' : ''; ?>
                                     >
                                         <?php echo htmlspecialchars($event['event_title'] . " - " . $event['event_date'] . " (" . $event['event_category'] . ")"); ?>
@@ -240,7 +237,7 @@ if (isset($_POST['submit'])) {
                                 <?php endforeach; ?>
                             </select>
                             <div class="hint-box" id="event_hint">
-                                Select a completed event to auto-suggest achievement details.
+                                Select a completed event to view the event details.
                             </div>
                         </div>
 
@@ -250,7 +247,7 @@ if (isset($_POST['submit'])) {
                                 type="text"
                                 name="title"
                                 id="title"
-                                placeholder="e.g. Champion / Certificate of Participation"
+                                placeholder="e.g. Best Speaker / Certificate of Participation"
                                 value="<?php echo isset($_POST['title']) ? htmlspecialchars($_POST['title']) : ''; ?>"
                                 required
                             >
@@ -330,76 +327,142 @@ if (isset($_POST['submit'])) {
     </div>
 
     <script>
+        function suggestTitleAndCategory(eventCategory, role) {
+            const roleLower = (role || "").toLowerCase();
+            const eventCategoryLower = (eventCategory || "").toLowerCase();
+
+            let suggestedTitle = "";
+            let suggestedCategory = "Others";
+
+            if (roleLower.includes("organizer") || roleLower.includes("committee") || roleLower.includes("facilitator")) {
+                suggestedTitle = "Leadership Recognition";
+                suggestedCategory = "Leadership";
+            } else if (roleLower.includes("speaker")) {
+                suggestedTitle = "Speaker Appreciation";
+                suggestedCategory = "Academic";
+            } else if (roleLower.includes("volunteer")) {
+                suggestedTitle = "Service Recognition";
+                suggestedCategory = "Community Service";
+            } else if (eventCategoryLower.includes("competition") || eventCategoryLower.includes("sports")) {
+                suggestedTitle = "Participation Certificate";
+                suggestedCategory = "Competition";
+            } else if (eventCategoryLower.includes("talk") || eventCategoryLower.includes("seminar") || eventCategoryLower.includes("workshop")) {
+                suggestedTitle = "Certificate of Participation";
+                suggestedCategory = "Academic";
+            } else if (eventCategoryLower.includes("volunteer")) {
+                suggestedTitle = "Community Service Recognition";
+                suggestedCategory = "Community Service";
+            } else if (eventCategoryLower.includes("club")) {
+                suggestedTitle = "Active Participation Recognition";
+                suggestedCategory = "Clubs & Societies";
+            } else {
+                suggestedTitle = "Achievement Recognition";
+                suggestedCategory = "Others";
+            }
+
+            return {
+                title: suggestedTitle,
+                category: suggestedCategory
+            };
+        }
+
+        function generateDescription(eventName, role) {
+            let desc = "";
+            const roleLower = (role || "").toLowerCase();
+
+            if (roleLower.includes("organizer") || roleLower.includes("committee") || roleLower.includes("facilitator")) {
+                desc = `Served as ${roleLower} for ${eventName}, contributing to event planning, coordination, and overall execution.`;
+            } else if (roleLower.includes("participant") || roleLower.includes("attendee")) {
+                desc = `Participated in ${eventName}, actively engaging in the activities and gaining valuable experience.`;
+            } else if (roleLower.includes("volunteer")) {
+                desc = `Volunteered in ${eventName}, supporting event operations and assisting in various tasks.`;
+            } else if (roleLower.includes("leader") || roleLower.includes("head")) {
+                desc = `Led responsibilities in ${eventName}, demonstrating leadership and organizational skills.`;
+            } else if (roleLower.includes("speaker")) {
+                desc = `Served as speaker for ${eventName}, contributing knowledge and insights to the event.`;
+            } else {
+                desc = `Involved in ${eventName} as ${roleLower || 'participant'}, contributing to the success of the event.`;
+            }
+
+            return desc;
+        }
+
+        function setupAutoTracking(input, type) {
+            input.addEventListener('input', function () {
+                if (this.dataset.autofilled === "true") {
+                    this.dataset.autofilled = "false";
+                }
+            });
+
+            if (type === "select") {
+                input.addEventListener('change', function () {
+                    if (this.dataset.autofilled === "true") {
+                        this.dataset.autofilled = "false";
+                    }
+                });
+            }
+        }
+
+        function setAutoValue(element, value) {
+            element.value = value;
+            element.dataset.autofilled = "true";
+        }
+
         function fillAchievementSuggestion() {
             const select = document.getElementById('event_id');
             const option = select.options[select.selectedIndex];
             const hint = document.getElementById('event_hint');
 
             if (!option || !option.value) {
-                hint.innerHTML = 'Select a completed event to auto-suggest achievement details.';
+                hint.innerHTML = 'Select a completed event to view the event details.';
                 return;
             }
 
-            const eventTitle = option.getAttribute('data-title') || '';
+            const eventName = option.getAttribute('data-title') || '';
             const eventCategory = option.getAttribute('data-category') || '';
             const eventDate = option.getAttribute('data-date') || '';
             const role = option.getAttribute('data-role') || '';
             const organizer = option.getAttribute('data-organizer') || '';
-            const merit = option.getAttribute('data-merit') || '0';
 
             const titleInput = document.getElementById('title');
             const categoryInput = document.getElementById('category');
             const dateInput = document.getElementById('achievement_date');
-            const levelInput = document.getElementById('level');
             const descriptionInput = document.getElementById('description');
 
-            let suggestedTitle = 'Certificate of Participation';
-            let suggestedCategory = 'Others';
-            let suggestedLevel = 'University';
+            const suggestion = suggestTitleAndCategory(eventCategory, role);
+            const generatedDescription = generateDescription(eventName, role);
 
-            if (eventCategory === 'Competition' || eventCategory === 'Sports') {
-                suggestedTitle = 'Participation Certificate';
-                suggestedCategory = 'Competition';
-            } else if (eventCategory === 'Volunteer') {
-                suggestedTitle = 'Appreciation Certificate';
-                suggestedCategory = 'Community Service';
-            } else if (eventCategory === 'Club Activity') {
-                suggestedTitle = 'Active Participation Recognition';
-                suggestedCategory = 'Clubs & Societies';
-            } else if (role === 'Committee' || role === 'Organizer' || role === 'Facilitator' || role === 'Speaker') {
-                suggestedTitle = 'Leadership Recognition';
-                suggestedCategory = 'Leadership';
+            // overwrite only if empty OR previously auto-filled
+            if (titleInput.value.trim() === '' || titleInput.dataset.autofilled === "true") {
+                setAutoValue(titleInput, suggestion.title);
             }
 
-            if (titleInput.value.trim() === '') {
-                titleInput.value = suggestedTitle;
+            if (categoryInput.value.trim() === '' || categoryInput.dataset.autofilled === "true") {
+                setAutoValue(categoryInput, suggestion.category);
             }
-            if (categoryInput.value.trim() === '') {
-                categoryInput.value = suggestedCategory;
+
+            if (dateInput.value.trim() === '' || dateInput.dataset.autofilled === "true") {
+                setAutoValue(dateInput, eventDate);
             }
-            if (dateInput.value.trim() === '') {
-                dateInput.value = eventDate;
-            }
-            if (levelInput.value.trim() === '') {
-                levelInput.value = suggestedLevel;
-            }
-            if (descriptionInput.value.trim() === '') {
-                descriptionInput.value =
-                    'Achievement linked to completed event: ' + eventTitle +
-                    ' | Organizer: ' + organizer +
-                    ' | Role: ' + role +
-                    ' | Merit Points: ' + merit;
+
+            if (descriptionInput.value.trim() === '' || descriptionInput.dataset.autofilled === "true") {
+                setAutoValue(descriptionInput, generatedDescription);
             }
 
             hint.innerHTML =
-                '<strong>Selected Event:</strong> ' + eventTitle +
+                '<strong>Selected Event:</strong> ' + eventName +
                 '<br><strong>Category:</strong> ' + eventCategory +
                 ' | <strong>Role:</strong> ' + role +
                 ' | <strong>Date:</strong> ' + eventDate +
-                ' | <strong>Merit:</strong> ' + merit + ' pts';
+                (organizer ? '<br><strong>Organizer:</strong> ' + organizer : '');
         }
 
         document.addEventListener('DOMContentLoaded', function () {
+            setupAutoTracking(document.getElementById('title'), 'input');
+            setupAutoTracking(document.getElementById('category'), 'select');
+            setupAutoTracking(document.getElementById('achievement_date'), 'input');
+            setupAutoTracking(document.getElementById('description'), 'input');
+
             fillAchievementSuggestion();
         });
     </script>

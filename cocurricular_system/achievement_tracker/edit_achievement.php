@@ -268,7 +268,6 @@ if (isset($_POST['update'])) {
                                     data-date="<?php echo htmlspecialchars($event['event_date'], ENT_QUOTES); ?>"
                                     data-role="<?php echo htmlspecialchars($event['participation_role'], ENT_QUOTES); ?>"
                                     data-organizer="<?php echo htmlspecialchars($event['organizer'], ENT_QUOTES); ?>"
-                                    data-merit="<?php echo (int) $event['merit_points']; ?>"
                                     <?php echo ((int) $row['event_id'] === (int) $event['id']) ? 'selected' : ''; ?>
                                 >
                                     <?php echo htmlspecialchars($event['event_title'] . " - " . $event['event_date'] . " (" . $event['event_category'] . ")"); ?>
@@ -372,14 +371,14 @@ if (isset($_POST['update'])) {
             const eventCategory = option.getAttribute('data-category') || '';
             const eventDate = option.getAttribute('data-date') || '';
             const role = option.getAttribute('data-role') || '';
-            const merit = option.getAttribute('data-merit') || '0';
+            const organizer = option.getAttribute('data-organizer') || '';
 
             hint.innerHTML =
                 '<strong>Selected Event:</strong> ' + eventTitle +
                 '<br><strong>Category:</strong> ' + eventCategory +
                 ' | <strong>Role:</strong> ' + role +
                 ' | <strong>Date:</strong> ' + eventDate +
-                ' | <strong>Merit:</strong> ' + merit + ' pts';
+                (organizer ? '<br><strong>Organizer:</strong> ' + organizer : '');
         }
 
         document.addEventListener('DOMContentLoaded', function () {

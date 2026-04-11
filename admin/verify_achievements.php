@@ -16,6 +16,124 @@ function safe_evidence_url($filename)
     return "../cocurricular_system/achievement_tracker/uploads/" . rawurlencode($filename);
 }
 
+/**
+ * Auto-create milestone achievements based on:
+ * 1) total approved merit hours
+ * 2) total approved merit points from completed events
+ */
+function award_auto_achievements($conn, $user_id)
+{
+    // ===== Merit Hours Rules =====
+    $hours_rules = [
+        10 => ['title' => 'Active Contributor Award', 'category' => 'Community Service', 'level' => 'University', 'source' => 'auto_merit_hours'],
+        25 => ['title' => 'Dedicated Service Award', 'category' => 'Community Service', 'level' => 'University', 'source' => 'auto_merit_hours'],
+        50 => ['title' => 'Excellence in Service Award', 'category' => 'Community Service', 'level' => 'University', 'source' => 'auto_merit_hours'],
+        80 => ['title' => 'Outstanding Volunteer Award', 'category' => 'Community Service', 'level' => 'University', 'source' => 'auto_merit_hours'],
+    ];
+
+    // ===== Merit Points Rules =====
+    $points_rules = [
+        20  => ['title' => 'Bronze Engagement Award', 'category' => 'Participation', 'level' => 'University', 'source' => 'auto_merit_points'],
+        50  => ['title' => 'Silver Engagement Award', 'category' => 'Participation', 'level' => 'University', 'source' => 'auto_merit_points'],
+        80  => ['title' => 'Gold Engagement Award', 'category' => 'Participation', 'level' => 'University', 'source' => 'auto_merit_points'],
+        120 => ['title' => 'Outstanding Student Involvement Award', 'category' => 'Leadership', 'level' => 'University', 'source' => 'auto_merit_points'],
+    ];
+
+    // ===== 1) Total approved merit hours =====
+    $hours_total = 0;
+    $hours_stmt = mysqli_prepare($conn, "SELECT COALESCE(SUM(hours_contributed), 0) AS total_hours FROM merits WHERE user_id = ? AND status = 'Completed'");
+    mysqli_stmt_bind_param($hours_stmt, 'i', $user_id);
+    mysqli_stmt_execute($hours_stmt);
+    $hours_result = mysqli_stmt_get_result($hours_stmt);
+    if ($row = mysqli_fetch_assoc($hours_result)) {
+        $hours_total = (float) $row['total_hours'];
+    }
+    mysqli_stmt_close($hours_stmt);
+
+    foreach ($hours_rules as $threshold => $rule) {
+        if ($hours_total >= $threshold) {
+            $check_stmt = mysqli_prepare($conn, "SELECT id FROM achievements WHERE user_id = ? AND title = ? LIMIT 1");
+            mysqli_stmt_bind_param($check_stmt, 'is', $user_id, $rule['title']);
+            mysqli_stmt_execute($check_stmt);
+            mysqli_stmt_store_result($check_stmt);
+            $exists = mysqli_stmt_num_rows($check_stmt) > 0;
+            mysqli_stmt_close($check_stmt);
+
+            if (!$exists) {
+                $description = "Automatically awarded after reaching {$threshold} approved merit hours.";
+                $status = 'Completed';
+                $source = $rule['source'];
+
+                $insert_stmt = mysqli_prepare($conn, "
+                    INSERT INTO achievements
+                    (user_id, event_id, title, category, achievement_date, level, description, status, evidence_file, achievement_source, reviewed_at, reviewed_by, admin_remark, created_at)
+                    VALUES (?, NULL, ?, ?, CURDATE(), ?, ?, ?, NULL, ?, NOW(), NULL, 'System auto-generated achievement.', NOW())
+                ");
+                mysqli_stmt_bind_param(
+                    $insert_stmt,
+                    'issssss',
+                    $user_id,
+                    $rule['title'],
+                    $rule['category'],
+                    $rule['level'],
+                    $description,
+                    $status,
+                    $source
+                );
+                mysqli_stmt_execute($insert_stmt);
+                mysqli_stmt_close($insert_stmt);
+            }
+        }
+    }
+
+    // ===== 2) Total approved merit points from completed events =====
+    $points_total = 0;
+    $points_stmt = mysqli_prepare($conn, "SELECT COALESCE(SUM(merit_points), 0) AS total_points FROM events WHERE user_id = ? AND event_status = 'Completed'");
+    mysqli_stmt_bind_param($points_stmt, 'i', $user_id);
+    mysqli_stmt_execute($points_stmt);
+    $points_result = mysqli_stmt_get_result($points_stmt);
+    if ($row = mysqli_fetch_assoc($points_result)) {
+        $points_total = (int) $row['total_points'];
+    }
+    mysqli_stmt_close($points_stmt);
+
+    foreach ($points_rules as $threshold => $rule) {
+        if ($points_total >= $threshold) {
+            $check_stmt = mysqli_prepare($conn, "SELECT id FROM achievements WHERE user_id = ? AND title = ? LIMIT 1");
+            mysqli_stmt_bind_param($check_stmt, 'is', $user_id, $rule['title']);
+            mysqli_stmt_execute($check_stmt);
+            mysqli_stmt_store_result($check_stmt);
+            $exists = mysqli_stmt_num_rows($check_stmt) > 0;
+            mysqli_stmt_close($check_stmt);
+
+            if (!$exists) {
+                $description = "Automatically awarded after reaching {$threshold} total merit points from approved events.";
+                $status = 'Completed';
+                $source = $rule['source'];
+
+                $insert_stmt = mysqli_prepare($conn, "
+                    INSERT INTO achievements
+                    (user_id, event_id, title, category, achievement_date, level, description, status, evidence_file, achievement_source, reviewed_at, reviewed_by, admin_remark, created_at)
+                    VALUES (?, NULL, ?, ?, CURDATE(), ?, ?, ?, NULL, ?, NOW(), NULL, 'System auto-generated achievement.', NOW())
+                ");
+                mysqli_stmt_bind_param(
+                    $insert_stmt,
+                    'issssss',
+                    $user_id,
+                    $rule['title'],
+                    $rule['category'],
+                    $rule['level'],
+                    $description,
+                    $status,
+                    $source
+                );
+                mysqli_stmt_execute($insert_stmt);
+                mysqli_stmt_close($insert_stmt);
+            }
+        }
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $type   = $_POST['type'] ?? '';
@@ -32,7 +150,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_bind_param($stmt, 'isi', $admin_id, $admin_remark, $id);
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
-
                 $eventStmt = mysqli_prepare($conn, "SELECT * FROM events WHERE id = ? LIMIT 1");
                 mysqli_stmt_bind_param($eventStmt, 'i', $id);
                 mysqli_stmt_execute($eventStmt);
@@ -87,12 +204,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         elseif ($type === 'achievement') {
             if ($action === 'approve') {
+                $get_stmt = mysqli_prepare($conn, "SELECT user_id FROM achievements WHERE id = ? LIMIT 1");
+                mysqli_stmt_bind_param($get_stmt, 'i', $id);
+                mysqli_stmt_execute($get_stmt);
+                $get_result = mysqli_stmt_get_result($get_stmt);
+                $achievement_row = mysqli_fetch_assoc($get_result);
+                mysqli_stmt_close($get_stmt);
+
                 $stmt = mysqli_prepare($conn, "UPDATE achievements 
                     SET status = 'Completed', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
                     WHERE id = ?");
                 mysqli_stmt_bind_param($stmt, 'isi', $admin_id, $admin_remark, $id);
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
+                if ($achievement_row) {
+                    award_auto_achievements($conn, $achievement_row['user_id']);
+                }
                 $flash = '✅ Achievement approved successfully.';
             } else {
                 $stmt = mysqli_prepare($conn, "UPDATE achievements 
@@ -108,13 +235,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         elseif ($type === 'merit') {
             if ($action === 'approve') {
+                // get user first
+                $get_stmt = mysqli_prepare($conn, "SELECT user_id FROM merits WHERE merit_id = ? LIMIT 1");
+                mysqli_stmt_bind_param($get_stmt, 'i', $id);
+                mysqli_stmt_execute($get_stmt);
+                $get_result = mysqli_stmt_get_result($get_stmt);
+                $merit_row = mysqli_fetch_assoc($get_result);
+                mysqli_stmt_close($get_stmt);
+
                 $stmt = mysqli_prepare($conn, "UPDATE merits 
                     SET status = 'Completed', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
                     WHERE merit_id = ?");
                 mysqli_stmt_bind_param($stmt, 'isi', $admin_id, $admin_remark, $id);
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
-                $flash = '✅ Merit record approved successfully.';
+
+
+                $flash = '✅ Merit record approved successfully. Auto achievement checked.';
             } else {
                 $stmt = mysqli_prepare($conn, "UPDATE merits 
                     SET status = 'Rejected', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
@@ -320,9 +457,6 @@ $tab = $_GET['tab'] ?? 'events';
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
                         <h2 style="color: var(--dark);">Upcoming Events Pending Approval (<?php echo $pending_events; ?>)</h2>
-                        <p style="color: #64748b; font-size: 0.9rem; margin-top: 4px;">
-                            Approve to mark as <strong>Completed</strong>, or reject to mark as <strong>Cancelled</strong>.
-                        </p>
                     </div>
                 </div>
 
@@ -380,7 +514,6 @@ $tab = $_GET['tab'] ?? 'events';
                     <div style="text-align: center; padding: 3rem 0;">
                         <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
                         <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No Pending Events!</h3>
-                        <p style="color: #64748b;">All student events have been reviewed.</p>
                     </div>
                 <?php endif; ?>
             </div>
@@ -390,9 +523,6 @@ $tab = $_GET['tab'] ?? 'events';
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
                         <h2 style="color: var(--dark);">Pending Achievements (<?php echo $pending_achievements; ?>)</h2>
-                        <p style="color: #64748b; font-size: 0.9rem; margin-top: 4px;">
-                            Review uploaded evidence before approving or rejecting.
-                        </p>
                     </div>
                 </div>
 
@@ -454,7 +584,6 @@ $tab = $_GET['tab'] ?? 'events';
                     <div style="text-align: center; padding: 3rem 0;">
                         <div style="font-size: 3rem; margin-bottom: 1rem;">🏆</div>
                         <h3 style="color: var(--dark); margin-bottom: 0.5rem;">All Caught Up!</h3>
-                        <p style="color: #64748b;">There are no pending achievements.</p>
                     </div>
                 <?php endif; ?>
             </div>
@@ -464,9 +593,6 @@ $tab = $_GET['tab'] ?? 'events';
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
                         <h2 style="color: var(--dark);">Pending Merits (<?php echo $pending_merits; ?>)</h2>
-                        <p style="color: #64748b; font-size: 0.9rem; margin-top: 4px;">
-                            Approve merit hours after reviewing activity details.
-                        </p>
                     </div>
                 </div>
 
@@ -519,7 +645,6 @@ $tab = $_GET['tab'] ?? 'events';
                     <div style="text-align: center; padding: 3rem 0;">
                         <div style="font-size: 3rem; margin-bottom: 1rem;">⏱️</div>
                         <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No Pending Merits!</h3>
-                        <p style="color: #64748b;">All merit records have been reviewed.</p>
                     </div>
                 <?php endif; ?>
             </div>

@@ -9,27 +9,46 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $username = $_SESSION['username'];
 
+$roles = ['Participant', 'Volunteer', 'Committee', 'Facilitator', 'Representative', 'Speaker', 'Organizer'];
+$roleMeritPoints = [
+    'Participant' => 5,
+    'Volunteer' => 8,
+    'Committee' => 10,
+    'Facilitator' => 12,
+    'Representative' => 12,
+    'Speaker' => 15,
+    'Organizer' => 20,
+];
+
 $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $activity_title = trim($_POST['activity_title']);
     $activity_type = trim($_POST['activity_type']);
+    $participation_role = trim($_POST['participation_role'] ?? 'Participant');
     $start_date = $_POST['start_date'];
     $end_date = $_POST['end_date'];
     $hours_contributed = trim($_POST['hours_contributed']);
+    $submitted_merit = trim($_POST['merit_points'] ?? '');
     $description = trim($_POST['description']);
+    $auto_merit_points = $roleMeritPoints[$participation_role] ?? 5;
+    $merit_points = is_numeric($submitted_merit) ? (int) $submitted_merit : $auto_merit_points;
 
     if (empty($activity_title) || empty($activity_type) || empty($start_date) || empty($end_date) || empty($hours_contributed)) {
         $error = "Please fill in all required fields.";
     } elseif (!preg_match('/^\d+(\.\d{1})?$/', $hours_contributed)) {
         $error = "Hours must be a non-negative number with at most 1 decimal place.";
+    } elseif (!in_array($participation_role, $roles, true)) {
+        $error = "Please choose a valid participation role.";
+    } elseif ($merit_points < 0) {
+        $error = "Merit points must be a non-negative number.";
     } elseif ($end_date < $start_date) {
         $error = "End date cannot be earlier than start date.";
     } else {
-        $sql = "INSERT INTO merits (user_id, activity_title, activity_type, start_date, end_date, hours_contributed, description, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
+        $sql = "INSERT INTO merits (user_id, activity_title, activity_type, start_date, end_date, hours_contributed, merit_points, description, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "issssds", $user_id, $activity_title, $activity_type, $start_date, $end_date, $hours_contributed, $description);
+        mysqli_stmt_bind_param($stmt, "issssdiss", $user_id, $activity_title, $activity_type, $start_date, $end_date, $hours_contributed, $merit_points, $description);
 
         if (mysqli_stmt_execute($stmt)) {
             header("Location: merit.php?success=added");
@@ -107,6 +126,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     </div>
 
                     <div>
+                        <label>Participation Role *</label>
+                        <select name="participation_role" id="participation_role" required onchange="autoFillMeritPoints(this.value)" style="width:100%; padding:0.8rem; border-radius:10px; border:1px solid var(--border);">
+                            <?php foreach ($roles as $role): ?>
+                                <option value="<?php echo htmlspecialchars($role); ?>" <?php echo (isset($_POST['participation_role']) ? $_POST['participation_role'] : 'Participant') === $role ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($role); ?> (<?php echo $roleMeritPoints[$role]; ?> pts)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div>
                         <label>Start Date *</label>
                         <input type="date" name="start_date" required style="width:100%; padding:0.8rem; border-radius:10px; border:1px solid var(--border);"
                                value="<?php echo isset($_POST['start_date']) ? htmlspecialchars($_POST['start_date']) : ''; ?>">
@@ -125,6 +155,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     </div>
 
                     <div style="grid-column: span 2;">
+                        <label>Merit Points *</label>
+                        <input type="number" id="merit_points" name="merit_points" min="0" step="1" required style="width:100%; padding:0.8rem; border-radius:10px; border:1px solid var(--border);"
+                               value="<?php echo isset($_POST['merit_points']) ? htmlspecialchars($_POST['merit_points']) : $roleMeritPoints['Participant']; ?>">
+                        <p style="font-size:0.8rem; color: var(--text-muted); margin-top:6px;">Uses the same merit point mapping as Event Tracker. You can still adjust it manually.</p>
+                    </div>
+
+                    <div style="grid-column: span 2;">
                         <label>Description</label>
                         <textarea name="description" rows="5" style="width:100%; padding:0.8rem; border-radius:10px; border:1px solid var(--border);"><?php echo isset($_POST['description']) ? htmlspecialchars($_POST['description']) : ''; ?></textarea>
                     </div>
@@ -137,5 +174,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             </form>
         </div>
     </div>
+
+    <script>
+        const roleMeritMap = {
+            'Participant': <?php echo $roleMeritPoints['Participant']; ?>,
+            'Volunteer': <?php echo $roleMeritPoints['Volunteer']; ?>,
+            'Committee': <?php echo $roleMeritPoints['Committee']; ?>,
+            'Facilitator': <?php echo $roleMeritPoints['Facilitator']; ?>,
+            'Representative': <?php echo $roleMeritPoints['Representative']; ?>,
+            'Speaker': <?php echo $roleMeritPoints['Speaker']; ?>,
+            'Organizer': <?php echo $roleMeritPoints['Organizer']; ?>
+        };
+
+        function autoFillMeritPoints(role) {
+            const meritInput = document.getElementById('merit_points');
+            if (roleMeritMap[role] !== undefined) {
+                meritInput.value = roleMeritMap[role];
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const roleSelect = document.getElementById('participation_role');
+            if (roleSelect) {
+                autoFillMeritPoints(roleSelect.value);
+            }
+        });
+    </script>
 </body>
 </html>
