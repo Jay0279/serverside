@@ -15,6 +15,17 @@ $categories = ['Seminar', 'Workshop', 'Competition', 'Talk', 'Volunteer', 'Sport
 $roles = ['Participant', 'Committee', 'Facilitator', 'Volunteer', 'Representative', 'Speaker', 'Organizer'];
 $statuses = ['Upcoming', 'Completed', 'Missed', 'Cancelled'];
 
+// Merit points assigned per role
+$roleMeritPoints = [
+    'Participant'    => 5,
+    'Volunteer'      => 8,
+    'Committee'      => 10,
+    'Facilitator'    => 12,
+    'Representative' => 12,
+    'Speaker'        => 15,
+    'Organizer'      => 20,
+];
+
 // Fetch clubs belonging to this user for the dropdown
 $clubsSql = 'SELECT club_id, club_name FROM clubs WHERE user_id = ? ORDER BY club_name ASC';
 $clubsStmt = mysqli_prepare($conn, $clubsSql);
@@ -36,7 +47,7 @@ $formData = [
     'participation_role' => 'Participant',
     'event_status'       => 'Upcoming',
     'event_hours'        => '0',
-    'merit_points'       => '0',
+    'merit_points'       => (string) $roleMeritPoints['Participant'],
     'remarks'            => ''
 ];
 
@@ -89,8 +100,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $participation_role = $formData['participation_role'];
     $event_status       = $formData['event_status'];
     $event_hours        = is_numeric($formData['event_hours']) ? (float) $formData['event_hours'] : -1;
-    $merit_points       = is_numeric($formData['merit_points']) ? (int) $formData['merit_points'] : -1;
     $remarks            = $formData['remarks'];
+
+    // Use submitted merit points if valid, otherwise fall back to role-based auto value
+    $submitted_merit = is_numeric($formData['merit_points']) ? (int) $formData['merit_points'] : -1;
+    $auto_merit      = $roleMeritPoints[$participation_role] ?? 5;
+    $merit_points    = $submitted_merit >= 0 ? $submitted_merit : $auto_merit;
 
     if ($event_title === '' || $organizer === '' || $event_date === '') {
         $error = 'Please fill in the event title, organizer, and event date.';
@@ -133,7 +148,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             mysqli_stmt_close($stmt);
 
             if ($success) {
-                // Auto-sync merit if status is Completed
                 if ($event_status === 'Completed' && $event_hours > 0) {
                     $checkSql = 'SELECT merit_id FROM merits WHERE event_id = ? AND user_id = ? LIMIT 1';
                     $checkStmt = mysqli_prepare($conn, $checkSql);
@@ -144,9 +158,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     mysqli_stmt_close($checkStmt);
 
                     if (!$alreadyExists) {
-                        $meritSql = 'INSERT INTO merits (user_id, event_id, activity_title, activity_type, start_date, end_date, hours_contributed, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
-                        $meritStmt = mysqli_prepare($conn, $meritSql);
-                        $meritDesc = 'Auto-generated from Event Tracker';
+                        $meritSql    = 'INSERT INTO merits (user_id, event_id, activity_title, activity_type, start_date, end_date, hours_contributed, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+                        $meritStmt   = mysqli_prepare($conn, $meritSql);
+                        $meritDesc   = 'Auto-generated from Event Tracker (Role: ' . $participation_role . ')';
                         $meritStatus = 'Pending';
                         mysqli_stmt_bind_param(
                             $meritStmt,
@@ -195,11 +209,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $new_event_id = mysqli_insert_id($conn);
                 mysqli_stmt_close($stmt);
 
-                // Auto-sync merit if status is Completed on new insert
                 if ($event_status === 'Completed' && $event_hours > 0) {
-                    $meritSql = 'INSERT INTO merits (user_id, event_id, activity_title, activity_type, start_date, end_date, hours_contributed, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
-                    $meritStmt = mysqli_prepare($conn, $meritSql);
-                    $meritDesc = 'Auto-generated from Event Tracker';
+                    $meritSql    = 'INSERT INTO merits (user_id, event_id, activity_title, activity_type, start_date, end_date, hours_contributed, description, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+                    $meritStmt   = mysqli_prepare($conn, $meritSql);
+                    $meritDesc   = 'Auto-generated from Event Tracker (Role: ' . $participation_role . ')';
                     $meritStatus = 'Pending';
                     mysqli_stmt_bind_param(
                         $meritStmt,
@@ -310,14 +323,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <div class="input-group">
                     <label for="participation_role">Participation Role</label>
-                    <select id="participation_role" name="participation_role" required>
+                    <select id="participation_role" name="participation_role" required onchange="autoFillMeritPoints(this.value)">
                         <?php foreach ($roles as $item): ?>
                             <option value="<?php echo htmlspecialchars($item); ?>"
                                 <?php echo $formData['participation_role'] === $item ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars($item); ?>
+                                (<?php echo $roleMeritPoints[$item] ?? 5; ?> pts)
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <p class="muted-line" style="font-size: 0.8rem; margin-top: 4px;">
+                        💡 Merit points below are auto-filled when you change this role. You can still adjust manually.
+                    </p>
                 </div>
 
                 <div class="input-group">
@@ -392,7 +409,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </div>
 
                 <div class="input-group full-span" style="background: var(--light, #f8f9fa); border-radius: 8px; padding: 12px 16px; font-size: 0.85rem; color: #666;">
-                    💡 <strong>Note:</strong> If you set the status to <strong>Completed</strong> and enter event hours, a merit record will be <strong>automatically created</strong> in the Merit Tracker. You do not need to add it manually.
+                    💡 <strong>Note:</strong> Merit points are <strong>auto-filled based on your role</strong>
+                    — Participant: 5 pts, Volunteer: 8 pts, Committee: 10 pts, Facilitator/Representative: 12 pts, Speaker: 15 pts, Organizer: 20 pts.
+                    When status is <strong>Completed</strong>, a merit record is also <strong>automatically sent</strong> to the Merit Tracker.
                 </div>
 
                 <div class="form-actions full-span">
@@ -402,6 +421,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </form>
         </div>
     </div>
+
+    <script>
+        // Role → merit points map (mirrors PHP $roleMeritPoints)
+        const roleMeritMap = {
+            'Participant': <?php echo $roleMeritPoints['Participant']; ?>,
+            'Volunteer': <?php echo $roleMeritPoints['Volunteer']; ?>,
+            'Committee': <?php echo $roleMeritPoints['Committee']; ?>,
+            'Facilitator': <?php echo $roleMeritPoints['Facilitator']; ?>,
+            'Representative': <?php echo $roleMeritPoints['Representative']; ?>,
+            'Speaker': <?php echo $roleMeritPoints['Speaker']; ?>,
+            'Organizer': <?php echo $roleMeritPoints['Organizer']; ?>,
+        };
+
+        function autoFillMeritPoints(role) {
+            const meritInput = document.getElementById('merit_points');
+            if (roleMeritMap[role] !== undefined) {
+                meritInput.value = roleMeritMap[role];
+            }
+        }
+
+        // On page load for NEW events only — auto-fill based on default role
+        <?php if (!$isEdit): ?>
+            document.addEventListener('DOMContentLoaded', function() {
+                const roleSelect = document.getElementById('participation_role');
+                autoFillMeritPoints(roleSelect.value);
+            });
+        <?php endif; ?>
+    </script>
 </body>
 
 </html>
