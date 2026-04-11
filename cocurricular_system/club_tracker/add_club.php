@@ -9,8 +9,6 @@ if (!isset($_SESSION['user_id'])) {
 $user_id = $_SESSION['user_id'];
 $error = "";
 
-// Predefined club list by category
-// Replace these sample values with your actual club names
 $club_options = [
     "Academic" => [
         "Computer Science Club",
@@ -84,7 +82,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif (!empty($end_date) && $end_date < $join_date) {
         $error = "End date cannot be earlier than join date.";
     } else {
-        // Prevent duplicate club record for the same user
         $check_sql = "SELECT club_id FROM clubs WHERE user_id = ? AND club_category = ? AND club_name = ?";
         $stmt_check = mysqli_prepare($conn, $check_sql);
         mysqli_stmt_bind_param($stmt_check, "iss", $user_id, $club_category, $club_name);
@@ -147,21 +144,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 
     <div class="content">
-        <div class="hero-banner">
+        <div class="hero-banner merit-hero-banner">
             <div>
-                <p class="hero-label">Club Module</p>
+                <p class="hero-label">CLUB MODULE</p>
                 <h1>Add Club Record 👥</h1>
-                <p class="hero-text">Record your club or society membership details.</p>
+                <p class="hero-text merit-hero-text">Create a new club membership record with organized dropdown selections.</p>
             </div>
         </div>
 
-        <div class="panel" style="max-width: 900px;">
-            <div class="panel-header">
-                <h2>New Club Record</h2>
+        <div class="panel merit-main-panel" style="max-width: 980px;">
+            <div class="panel-header merit-panel-header-better">
+                <div>
+                    <h2 class="merit-panel-title">New Club Record</h2>
+                    <p class="merit-panel-subtitle">Fill in your membership details and submit for record keeping.</p>
+                </div>
             </div>
 
             <?php if (!empty($error)): ?>
-                <div class="alert-error-box"><?php echo htmlspecialchars($error); ?></div>
+                <div class="alert error"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
 
             <form method="POST">
@@ -190,8 +190,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <select class="module-select" name="role_position" required>
                             <option value="">Select Role / Position</option>
                             <?php foreach ($role_options as $role): ?>
-                                <option value="<?php echo htmlspecialchars($role); ?>"
-                                    <?php if (isset($_POST['role_position']) && $_POST['role_position'] === $role) echo "selected"; ?>>
+                                <option value="<?php echo htmlspecialchars($role); ?>" <?php if (isset($_POST['role_position']) && $_POST['role_position'] === $role) echo "selected"; ?>>
                                     <?php echo htmlspecialchars($role); ?>
                                 </option>
                             <?php endforeach; ?>

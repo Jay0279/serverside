@@ -8,6 +8,16 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
+function club_column_exists_view($conn, $column_name)
+{
+    $safe_column = mysqli_real_escape_string($conn, $column_name);
+    $sql = "SHOW COLUMNS FROM clubs LIKE '$safe_column'";
+    $result = mysqli_query($conn, $sql);
+    return $result && mysqli_num_rows($result) > 0;
+}
+
+$has_review_status = club_column_exists_view($conn, 'review_status');
+
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header("Location: clubs.php");
     exit();
@@ -55,27 +65,93 @@ $row = mysqli_fetch_assoc($result);
     </div>
 
     <div class="content">
-        <div class="hero-banner">
+        <div class="hero-banner merit-hero-banner">
             <div>
-                <p class="hero-label">Club Module</p>
+                <p class="hero-label">CLUB MODULE</p>
                 <h1>Club Record Details 👁</h1>
-                <p class="hero-text">View your club membership information.</p>
+                <p class="hero-text merit-hero-text">Review your saved membership information in a clean detail view.</p>
             </div>
         </div>
 
-        <div class="panel" style="max-width: 900px;">
-            <div class="panel-header">
-                <h2><?php echo htmlspecialchars($row['club_name']); ?></h2>
+        <div class="panel merit-main-panel" style="max-width: 980px;">
+            <div class="panel-header merit-panel-header-better">
+                <div>
+                    <h2 class="merit-panel-title"><?php echo htmlspecialchars($row['club_name']); ?></h2>
+                    <p class="merit-panel-subtitle">Detailed information for this club membership record.</p>
+                </div>
             </div>
 
-            <div class="details-grid">
-                <div class="details-box"><strong>Club Name:</strong><br><?php echo htmlspecialchars($row['club_name']); ?></div>
-                <div class="details-box"><strong>Category:</strong><br><?php echo htmlspecialchars($row['club_category']); ?></div>
-                <div class="details-box"><strong>Role / Position:</strong><br><?php echo htmlspecialchars($row['role_position']); ?></div>
-                <div class="details-box"><strong>Status:</strong><br><?php echo htmlspecialchars($row['membership_status']); ?></div>
-                <div class="details-box"><strong>Join Date:</strong><br><?php echo htmlspecialchars($row['join_date']); ?></div>
-                <div class="details-box"><strong>End Date:</strong><br><?php echo !empty($row['end_date']) ? htmlspecialchars($row['end_date']) : '-'; ?></div>
-                <div class="details-box full-span"><strong>Remarks:</strong><br><?php echo !empty($row['remarks']) ? nl2br(htmlspecialchars($row['remarks'])) : '-'; ?></div>
+            <div class="stats-container merit-stats-container" style="margin-bottom: 1.5rem;">
+                <div class="stat-box blue">
+                    <span class="stat-label">Club Category</span>
+                    <div class="stat-number" style="font-size: 1.4rem;"><?php echo htmlspecialchars($row['club_category']); ?></div>
+                    <span class="stat-label merit-stat-subtext">Selected category</span>
+                </div>
+
+                <div class="stat-box green">
+                    <span class="stat-label">Role</span>
+                    <div class="stat-number" style="font-size: 1.4rem;"><?php echo htmlspecialchars($row['role_position']); ?></div>
+                    <span class="stat-label merit-stat-subtext">Membership position</span>
+                </div>
+
+                <div class="stat-box orange">
+                    <span class="stat-label">Membership</span>
+                    <div class="stat-number" style="font-size: 1.4rem;"><?php echo htmlspecialchars($row['membership_status']); ?></div>
+                    <span class="stat-label merit-stat-subtext">Current membership state</span>
+                </div>
+
+                <?php if ($has_review_status): ?>
+                    <div class="stat-box purple">
+                        <span class="stat-label">Review Status</span>
+                        <div class="stat-number" style="font-size: 1.4rem;"><?php echo htmlspecialchars($row['review_status']); ?></div>
+                        <span class="stat-label merit-stat-subtext">Admin verification state</span>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <div class="table-wrapper merit-table-wrapper">
+                <table class="record-table merit-record-table better-merit-table">
+                    <tbody>
+                        <tr>
+                            <th style="width: 220px;">Club Name</th>
+                            <td><?php echo htmlspecialchars($row['club_name']); ?></td>
+                        </tr>
+                        <tr>
+                            <th>Club Category</th>
+                            <td><?php echo htmlspecialchars($row['club_category']); ?></td>
+                        </tr>
+                        <tr>
+                            <th>Role / Position</th>
+                            <td><?php echo htmlspecialchars($row['role_position']); ?></td>
+                        </tr>
+                        <tr>
+                            <th>Membership Status</th>
+                            <td><?php echo htmlspecialchars($row['membership_status']); ?></td>
+                        </tr>
+                        <tr>
+                            <th>Join Date</th>
+                            <td><?php echo htmlspecialchars($row['join_date']); ?></td>
+                        </tr>
+                        <tr>
+                            <th>End Date</th>
+                            <td><?php echo !empty($row['end_date']) ? htmlspecialchars($row['end_date']) : '-'; ?></td>
+                        </tr>
+                        <?php if ($has_review_status): ?>
+                            <tr>
+                                <th>Review Status</th>
+                                <td><?php echo htmlspecialchars($row['review_status']); ?></td>
+                            </tr>
+                            <tr>
+                                <th>Admin Remark</th>
+                                <td><?php echo !empty($row['admin_remark']) ? nl2br(htmlspecialchars($row['admin_remark'])) : '-'; ?></td>
+                            </tr>
+                        <?php endif; ?>
+                        <tr>
+                            <th>Remarks</th>
+                            <td><?php echo !empty($row['remarks']) ? nl2br(htmlspecialchars($row['remarks'])) : '-'; ?></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
             <div class="module-actions">

@@ -16,8 +16,6 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $club_id = (int) $_GET['id'];
 $error = "";
 
-// Predefined club list by category
-// Replace these sample values with your actual club names
 $club_options = [
     "Academic" => [
         "Computer Science Club",
@@ -104,7 +102,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif (!empty($end_date) && $end_date < $join_date) {
         $error = "End date cannot be earlier than join date.";
     } else {
-        // Prevent duplicate club record for the same user except current record
         $check_sql = "SELECT club_id FROM clubs WHERE user_id = ? AND club_category = ? AND club_name = ? AND club_id != ?";
         $stmt_check = mysqli_prepare($conn, $check_sql);
         mysqli_stmt_bind_param($stmt_check, "issi", $user_id, $club_category, $club_name, $club_id);
@@ -115,7 +112,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error = "You have already added this club.";
         } else {
             $update_sql = "UPDATE clubs
-                           SET club_name = ?, club_category = ?, role_position = ?, join_date = ?, end_date = ?, membership_status = ?, remarks = ?
+                           SET club_name = ?, club_category = ?, role_position = ?, join_date = ?, end_date = ?, membership_status = ?, remarks = ?,
+                               review_status = 'Pending', reviewed_at = NULL, reviewed_by = NULL, admin_remark = NULL
                            WHERE club_id = ? AND user_id = ?";
             $update_stmt = mysqli_prepare($conn, $update_sql);
             mysqli_stmt_bind_param(
@@ -177,21 +175,24 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 
     <div class="content">
-        <div class="hero-banner">
+        <div class="hero-banner merit-hero-banner">
             <div>
-                <p class="hero-label">Club Module</p>
+                <p class="hero-label">CLUB MODULE</p>
                 <h1>Edit Club Record ✎</h1>
-                <p class="hero-text">Update your club membership details.</p>
+                <p class="hero-text merit-hero-text">Update your membership details with the same organized structure.</p>
             </div>
         </div>
 
-        <div class="panel" style="max-width: 900px;">
-            <div class="panel-header">
-                <h2>Edit Club Record</h2>
+        <div class="panel merit-main-panel" style="max-width: 980px;">
+            <div class="panel-header merit-panel-header-better">
+                <div>
+                    <h2 class="merit-panel-title">Edit Club Record</h2>
+                    <p class="merit-panel-subtitle">Modify your club membership details and save the updated record.</p>
+                </div>
             </div>
 
             <?php if (!empty($error)): ?>
-                <div class="alert-error-box"><?php echo htmlspecialchars($error); ?></div>
+                <div class="alert error"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
 
             <form method="POST">
@@ -220,8 +221,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <select class="module-select" name="role_position" required>
                             <option value="">Select Role / Position</option>
                             <?php foreach ($role_options as $role): ?>
-                                <option value="<?php echo htmlspecialchars($role); ?>"
-                                    <?php if ($row['role_position'] === $role) echo "selected"; ?>>
+                                <option value="<?php echo htmlspecialchars($role); ?>" <?php if ($row['role_position'] === $role) echo "selected"; ?>>
                                     <?php echo htmlspecialchars($role); ?>
                                 </option>
                             <?php endforeach; ?>
