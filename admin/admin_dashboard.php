@@ -110,66 +110,64 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard | CCMS</title>
-    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="../style.css?v=<?php echo time(); ?>">
+    <style>
+        .table-row-hover:hover {
+            background-color: #f8fafc;
+            transition: background-color 0.2s ease;
+        }
+    </style>
 </head>
 <body class="main-body">
-    <div class="sidebar" style="background: linear-gradient(180deg, #1e1b4b, #312e81);">
+    <div class="sidebar" style="background: #0f172a;">
         <div>
-            <h2>CCMS Admin</h2>
+            <h2 style="color: #818cf8;">CCMS Admin</h2>
             <p class="sidebar-subtitle">Staff Portal</p>
         </div>
 
         <div class="nav-links">
-            <a href="admin_dashboard.php" class="active">User Management</a>
-            <a href="verify_achievements.php">Verification Inbox</a>
+            <a href="admin_dashboard.php" class="active">👥 User Management</a>
+            <a href="verify_achievements.php">✅ Verification Inbox</a>
         </div>
 
-        <a href="../auth/logout.php" class="logout-link">Log Out</a>
+        <a href="../auth/logout.php" class="logout-link" style="margin-top: auto;">Log Out</a>
     </div>
 
     <div class="content">
-        <div class="hero-banner" style="background: linear-gradient(135deg, #1e1b4b, #4338ca); color: white;">
-            <div>
-                <p class="hero-label" style="color: #c7d2fe;">System Administrator</p>
-                <h1 style="color: white;">Welcome, <?php echo htmlspecialchars($username); ?></h1>
-                <p style="opacity: 0.9; margin-top: 0.5rem;">Monitor all registered students and review overall system usage across events, clubs, merits, and achievements.</p>
+        <div class="hero-glass" style="background: linear-gradient(120deg, #1e293b, #4338ca);">
+            <p class="hero-label" style="color: #c7d2fe; margin-bottom: 0.5rem; display: block;">System Administrator</p>
+            <h1>Welcome, <?php echo htmlspecialchars($username); ?> 🛡️</h1>
+            <p>Monitor all registered students and review overall system usage across events, clubs, merits, and achievements.</p>
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-box blue">
+                <span class="stat-label">Registered Students</span>
+                <div class="stat-number"><?php echo $total_students; ?></div>
+                <span class="stat-label" style="color: var(--text-muted); font-size: 0.8rem;">Student accounts in system</span>
+            </div>
+
+            <div class="stat-box green">
+                <span class="stat-label">Total Events</span>
+                <div class="stat-number"><?php echo $total_events; ?></div>
+                <span class="stat-label" style="color: var(--text-muted); font-size: 0.8rem;">All event records</span>
+            </div>
+
+            <div class="stat-box orange">
+                <span class="stat-label">Total Merit Records</span>
+                <div class="stat-number"><?php echo $total_merits; ?></div>
+                <span class="stat-label" style="color: var(--text-muted); font-size: 0.8rem;">All merit submissions</span>
+            </div>
+
+            <div class="stat-box purple">
+                <span class="stat-label">Total Achievements</span>
+                <div class="stat-number"><?php echo $total_achievements; ?></div>
+                <span class="stat-label" style="color: var(--text-muted); font-size: 0.8rem;">Recognition records</span>
             </div>
         </div>
 
-        <div class="stats-grid">
-            <div class="stat-card blue">
-                <span class="stat-title">Registered Students</span>
-                <h3><?php echo $total_students; ?></h3>
-                <p class="stat-note">Student accounts in system</p>
-            </div>
-
-            <div class="stat-card green">
-                <span class="stat-title">Total Events</span>
-                <h3><?php echo $total_events; ?></h3>
-                <p class="stat-note">All event records</p>
-            </div>
-
-            <div class="stat-card orange">
-                <span class="stat-title">Total Merit Records</span>
-                <h3><?php echo $total_merits; ?></h3>
-                <p class="stat-note">All merit submissions</p>
-            </div>
-
-            <div class="stat-card purple">
-                <span class="stat-title">Total Achievements</span>
-                <h3><?php echo $total_achievements; ?></h3>
-                <p class="stat-note">Recognition records</p>
-            </div>
-
-            <div class="stat-card" style="border-left-color: #14b8a6;">
-                <span class="stat-title">Total Clubs</span>
-                <h3><?php echo $total_clubs; ?></h3>
-                <p class="stat-note">Club membership records</p>
-            </div>
-        </div>
-
-        <div class="panel" style="margin-bottom: 2rem;">
-            <div class="panel-header" style="gap: 1rem; flex-wrap: wrap;">
+        <div class="panel" style="margin-bottom: 2.5rem; padding-bottom: 0;">
+            <div class="panel-header" style="gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem;">
                 <div>
                     <h2 style="color: var(--dark); margin-bottom: 0.35rem;">Student Usage Summary</h2>
                     <p style="color: var(--text-muted); font-size: 0.95rem;">
@@ -186,26 +184,26 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
                         name="search"
                         placeholder="Search by username or email"
                         value="<?php echo htmlspecialchars($search); ?>"
-                        style="min-width: 260px; padding: 0.8rem 1rem; border: 2px solid var(--border); border-radius: 12px; outline: none;">
+                        style="min-width: 260px; padding: 0.8rem 1rem; border: 2px solid var(--border); border-radius: 12px; outline: none; transition: 0.3s;">
                     <button type="submit" class="btn-primary">Search</button>
                     <?php if ($search !== ''): ?>
-                        <a href="admin_dashboard.php" class="btn-disabled" style="text-decoration: none; display: inline-block; cursor: pointer;">Reset</a>
+                        <a href="admin_dashboard.php" class="btn-disabled" style="text-decoration: none; display: inline-block;">Reset</a>
                     <?php endif; ?>
                 </form>
             </div>
 
-            <div class="table-wrapper" style="overflow-x: auto; background: white; border-radius: 16px; border: 1px solid var(--border);">
+            <div class="table-wrapper" style="overflow-x: auto; background: white; border-top-left-radius: 16px; border-top-right-radius: 16px; border: 1px solid var(--border); border-bottom: none;">
                 <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 980px;">
-                    <thead style="background: var(--bg-light); border-bottom: 2px solid var(--border);">
+                    <thead style="background: #f8fafc; border-bottom: 2px solid var(--border);">
                         <tr>
-                            <th style="padding: 1rem;">ID</th>
-                            <th style="padding: 1rem;">Student Name</th>
-                            <th style="padding: 1rem;">Email</th>
-                            <th style="padding: 1rem; text-align: center;">Events</th>
-                            <th style="padding: 1rem; text-align: center;">Clubs</th>
-                            <th style="padding: 1rem; text-align: center;">Merits</th>
-                            <th style="padding: 1rem; text-align: center;">Achievements</th>
-                            <th style="padding: 1rem; text-align: center;">Total Records</th>
+                            <th style="padding: 1.2rem 1rem; color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase;">ID</th>
+                            <th style="padding: 1.2rem 1rem; color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase;">Student Name</th>
+                            <th style="padding: 1.2rem 1rem; color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase;">Email</th>
+                            <th style="padding: 1.2rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase;">Events</th>
+                            <th style="padding: 1.2rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase;">Clubs</th>
+                            <th style="padding: 1.2rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase;">Merits</th>
+                            <th style="padding: 1.2rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase;">Achievements</th>
+                            <th style="padding: 1.2rem 1rem; text-align: center; color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase;">Total Records</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -218,31 +216,33 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
                                     (int) $row['total_merits'] +
                                     (int) $row['total_achievements'];
                                 ?>
-                                <tr style="border-bottom: 1px solid var(--border);">
-                                    <td style="padding: 1rem; color: var(--text-muted);">#<?php echo $row['id']; ?></td>
-                                    <td style="padding: 1rem;"><strong style="color: var(--dark);"><?php echo htmlspecialchars($row['username']); ?></strong></td>
-                                    <td style="padding: 1rem; color: var(--text-muted);"><?php echo htmlspecialchars($row['email']); ?></td>
-                                    <td style="padding: 1rem; text-align: center;">
-                                        <span style="display: inline-block; min-width: 44px; padding: 0.35rem 0.75rem; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-weight: 700;"><?php echo $row['total_events']; ?></span>
+                                <tr class="table-row-hover" style="border-bottom: 1px solid var(--border);">
+                                    <td style="padding: 1.2rem 1rem; color: var(--text-muted); font-weight: 500;">#<?php echo $row['id']; ?></td>
+                                    <td style="padding: 1.2rem 1rem;"><strong style="color: var(--dark); font-size: 1.05rem;"><?php echo htmlspecialchars($row['username']); ?></strong></td>
+                                    <td style="padding: 1.2rem 1rem; color: var(--text-muted);"><?php echo htmlspecialchars($row['email']); ?></td>
+                                    
+                                    <td style="padding: 1.2rem 1rem; text-align: center;">
+                                        <span style="display: inline-block; min-width: 44px; padding: 0.35rem 0.75rem; border-radius: 999px; background: #eff6ff; color: #2563eb; font-weight: 700;"><?php echo $row['total_events']; ?></span>
                                     </td>
-                                    <td style="padding: 1rem; text-align: center;">
-                                        <span style="display: inline-block; min-width: 44px; padding: 0.35rem 0.75rem; border-radius: 999px; background: #dcfce7; color: #15803d; font-weight: 700;"><?php echo $row['total_clubs']; ?></span>
+                                    <td style="padding: 1.2rem 1rem; text-align: center;">
+                                        <span style="display: inline-block; min-width: 44px; padding: 0.35rem 0.75rem; border-radius: 999px; background: #f0fdf4; color: #16a34a; font-weight: 700;"><?php echo $row['total_clubs']; ?></span>
                                     </td>
-                                    <td style="padding: 1rem; text-align: center;">
-                                        <span style="display: inline-block; min-width: 44px; padding: 0.35rem 0.75rem; border-radius: 999px; background: #fef3c7; color: #b45309; font-weight: 700;"><?php echo $row['total_merits']; ?></span>
+                                    <td style="padding: 1.2rem 1rem; text-align: center;">
+                                        <span style="display: inline-block; min-width: 44px; padding: 0.35rem 0.75rem; border-radius: 999px; background: #fffbeb; color: #d97706; font-weight: 700;"><?php echo $row['total_merits']; ?></span>
                                     </td>
-                                    <td style="padding: 1rem; text-align: center;">
-                                        <span style="display: inline-block; min-width: 44px; padding: 0.35rem 0.75rem; border-radius: 999px; background: #ede9fe; color: #6d28d9; font-weight: 700;"><?php echo $row['total_achievements']; ?></span>
+                                    <td style="padding: 1.2rem 1rem; text-align: center;">
+                                        <span style="display: inline-block; min-width: 44px; padding: 0.35rem 0.75rem; border-radius: 999px; background: #f5f3ff; color: #7c3aed; font-weight: 700;"><?php echo $row['total_achievements']; ?></span>
                                     </td>
-                                    <td style="padding: 1rem; text-align: center;">
-                                        <span style="display: inline-block; min-width: 58px; padding: 0.45rem 0.8rem; border-radius: 999px; background: #111827; color: white; font-weight: 700;"><?php echo $grand_total; ?></span>
+                                    
+                                    <td style="padding: 1.2rem 1rem; text-align: center;">
+                                        <span style="display: inline-block; min-width: 58px; padding: 0.45rem 0.8rem; border-radius: 999px; background: #0f172a; color: white; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><?php echo $grand_total; ?></span>
                                     </td>
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="8" style="padding: 2.5rem; text-align: center;">
-                                    <div style="font-size: 2.5rem; margin-bottom: 0.8rem;">Admin</div>
+                                <td colspan="8" style="padding: 4rem 2rem; text-align: center;">
+                                    <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
                                     <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No students found</h3>
                                     <p style="color: var(--text-muted);">Try another search keyword or wait until students register in the system.</p>
                                 </td>
@@ -254,27 +254,27 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
         </div>
 
         <div class="panel">
-            <div class="panel-header">
-                <h2 style="color: var(--dark);">Admin Notes</h2>
+            <div class="panel-header" style="margin-bottom: 1.5rem;">
+                <h2 style="color: var(--dark);">Admin Features</h2>
             </div>
 
-            <div class="card-grid" style="margin-bottom: 0;">
-                <div class="module-card">
-                    <div class="module-icon">Search</div>
+            <div class="module-grid" style="margin-bottom: 0;">
+                <div class="module-card-v2">
+                    <div class="module-icon-v2">🔍</div>
                     <h3>Search Support</h3>
                     <p>Find students quickly by username or email to review their system activity summary.</p>
                 </div>
 
-                <div class="module-card">
-                    <div class="module-icon">Stats</div>
+                <div class="module-card-v2">
+                    <div class="module-icon-v2">📊</div>
                     <h3>System Monitoring</h3>
                     <p>Review overall totals across event, club, merit, and achievement modules from one place.</p>
                 </div>
 
-                <div class="module-card">
-                    <div class="module-icon">Links</div>
-                    <h3>Integrated Overview</h3>
-                    <p>See how centralized login and user-linked module records come together in one dashboard.</p>
+                <div class="module-card-v2">
+                    <div class="module-icon-v2">✅</div>
+                    <h3>Verification Flow</h3>
+                    <p>Use the Verification Inbox to review uploaded evidence and approve student achievements.</p>
                 </div>
             </div>
         </div>
