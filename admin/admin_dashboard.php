@@ -172,7 +172,7 @@ $filtered_students = $result ? mysqli_num_rows($result) : 0;
 
         <div class="nav-links">
             <a href="admin_dashboard.php" class="active">👥 User Management</a>
-            <a href="verify_achievements.php">✅ Verification Inbox
+            <a href="verify_achievements.php">✅ Verification Achivement
                 <?php if ($pending_count > 0): ?>
                     <span style="background:#ef4444;color:white;padding:2px 8px;border-radius:999px;font-size:0.8rem;margin-left:6px;"><?php echo $pending_count; ?></span>
                 <?php endif; ?>
