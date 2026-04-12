@@ -13,74 +13,120 @@ function history_file_url($filename)
     return "../cocurricular_system/achievement_tracker/uploads/" . rawurlencode($filename);
 }
 
+function fetch_count_history($conn, $sql, $types = '', ...$params)
+{
+    $stmt = mysqli_prepare($conn, $sql);
+    if (!$stmt) {
+        return 0;
+    }
+
+    if ($types !== '') {
+        mysqli_stmt_bind_param($stmt, $types, ...$params);
+    }
+
+    mysqli_stmt_execute($stmt);
+    $result = mysqli_stmt_get_result($stmt);
+    $row = $result ? mysqli_fetch_assoc($result) : null;
+    mysqli_stmt_close($stmt);
+
+    return (int) ($row['total'] ?? 0);
+}
+
+function fetch_rows_history($conn, $sql, $types = '', ...$params)
+{
+    $stmt = mysqli_prepare($conn, $sql);
+    if (!$stmt) {
+        return false;
+    }
+
+    if ($types !== '') {
+        mysqli_stmt_bind_param($stmt, $types, ...$params);
+    }
+
+    mysqli_stmt_execute($stmt);
+    return mysqli_stmt_get_result($stmt);
+}
+
+function student_identity_text($student_id, $email)
+{
+    return trim(($student_id ?? '') . ' | ' . ($email ?? ''));
+}
+
 $tab = $_GET['tab'] ?? 'events';
 
-// pending count for sidebar
-$pending_events = 0;
-$pending_clubs = 0;
-$pending_achievements = 0;
-$pending_merits = 0;
+$upcoming_status = 'Upcoming';
+$pending_status = 'Pending';
+$pending_verification = 'Pending Verification';
 
-$r1 = mysqli_query($conn, "SELECT COUNT(*) AS total FROM events WHERE event_status = 'Upcoming'");
-if ($r1) $pending_events = (int) (mysqli_fetch_assoc($r1)['total'] ?? 0);
-
-$rClub = mysqli_query($conn, "SELECT COUNT(*) AS total FROM clubs WHERE review_status = 'Pending'");
-if ($rClub) $pending_clubs = (int) (mysqli_fetch_assoc($rClub)['total'] ?? 0);
-
-$r2 = mysqli_query($conn, "SELECT COUNT(*) AS total FROM achievements WHERE status = 'Pending Verification'");
-if ($r2) $pending_achievements = (int) (mysqli_fetch_assoc($r2)['total'] ?? 0);
-
-$r3 = mysqli_query($conn, "SELECT COUNT(*) AS total FROM merits WHERE status = 'Pending'");
-if ($r3) $pending_merits = (int) (mysqli_fetch_assoc($r3)['total'] ?? 0);
+$pending_events = fetch_count_history($conn, "SELECT COUNT(*) AS total FROM events WHERE event_status = ?", "s", $upcoming_status);
+$pending_clubs = fetch_count_history($conn, "SELECT COUNT(*) AS total FROM clubs WHERE review_status = ?", "s", $pending_status);
+$pending_achievements = fetch_count_history($conn, "SELECT COUNT(*) AS total FROM achievements WHERE status = ?", "s", $pending_verification);
+$pending_merits = fetch_count_history($conn, "SELECT COUNT(*) AS total FROM merits WHERE status = ?", "s", $pending_status);
 
 $total_pending = $pending_events + $pending_clubs + $pending_achievements + $pending_merits;
 
-// Event history
-$eventHistorySql = "
-    SELECT e.*, u.username, c.club_name
-    FROM events e
-    JOIN users u ON e.user_id = u.id
-    LEFT JOIN clubs c ON e.club_id = c.club_id
-    WHERE e.event_status IN ('Completed', 'Cancelled')
-      AND e.reviewed_at IS NOT NULL
-    ORDER BY e.reviewed_at DESC
-";
-$eventHistoryResult = mysqli_query($conn, $eventHistorySql);
+$eventHistoryResult = fetch_rows_history(
+    $conn,
+    "
+        SELECT e.*, u.student_id, u.email, c.club_name
+        FROM events e
+        JOIN users u ON e.user_id = u.id
+        LEFT JOIN clubs c ON e.club_id = c.club_id
+        WHERE e.event_status IN (?, ?)
+          AND e.reviewed_at IS NOT NULL
+        ORDER BY e.reviewed_at DESC
+    ",
+    "ss",
+    'Completed',
+    'Cancelled'
+);
 
-// Club history
-$clubHistorySql = "
-    SELECT c.*, u.username
-    FROM clubs c
-    JOIN users u ON c.user_id = u.id
-    WHERE c.review_status IN ('Approved', 'Rejected')
-      AND c.reviewed_at IS NOT NULL
-    ORDER BY c.reviewed_at DESC
-";
-$clubHistoryResult = mysqli_query($conn, $clubHistorySql);
+$clubHistoryResult = fetch_rows_history(
+    $conn,
+    "
+        SELECT c.*, u.student_id, u.email
+        FROM clubs c
+        JOIN users u ON c.user_id = u.id
+        WHERE c.review_status IN (?, ?)
+          AND c.reviewed_at IS NOT NULL
+        ORDER BY c.reviewed_at DESC
+    ",
+    "ss",
+    'Approved',
+    'Rejected'
+);
 
-// Achievement history
-$achievementHistorySql = "
-    SELECT a.*, u.username, e.event_title
-    FROM achievements a
-    JOIN users u ON a.user_id = u.id
-    LEFT JOIN events e ON a.event_id = e.id
-    WHERE a.status IN ('Completed', 'Rejected')
-      AND a.reviewed_at IS NOT NULL
-    ORDER BY a.reviewed_at DESC
-";
-$achievementHistoryResult = mysqli_query($conn, $achievementHistorySql);
+$achievementHistoryResult = fetch_rows_history(
+    $conn,
+    "
+        SELECT a.*, u.student_id, u.email, e.event_title
+        FROM achievements a
+        JOIN users u ON a.user_id = u.id
+        LEFT JOIN events e ON a.event_id = e.id
+        WHERE a.status IN (?, ?)
+          AND a.reviewed_at IS NOT NULL
+        ORDER BY a.reviewed_at DESC
+    ",
+    "ss",
+    'Completed',
+    'Rejected'
+);
 
-// Merit history
-$meritHistorySql = "
-    SELECT m.*, u.username, e.event_title
-    FROM merits m
-    JOIN users u ON m.user_id = u.id
-    LEFT JOIN events e ON m.event_id = e.id
-    WHERE m.status IN ('Completed', 'Rejected')
-      AND m.reviewed_at IS NOT NULL
-    ORDER BY m.reviewed_at DESC
-";
-$meritHistoryResult = mysqli_query($conn, $meritHistorySql);
+$meritHistoryResult = fetch_rows_history(
+    $conn,
+    "
+        SELECT m.*, u.student_id, u.email, e.event_title
+        FROM merits m
+        JOIN users u ON m.user_id = u.id
+        LEFT JOIN events e ON m.event_id = e.id
+        WHERE m.status IN (?, ?)
+          AND m.reviewed_at IS NOT NULL
+        ORDER BY m.reviewed_at DESC
+    ",
+    "ss",
+    'Completed',
+    'Rejected'
+);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -89,101 +135,6 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View History | CCMS Admin</title>
     <link rel="stylesheet" href="../style.css?v=<?php echo time(); ?>">
-    <style>
-        .tab-bar {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1.5rem;
-            border-bottom: 2px solid var(--border, #e2e8f0);
-            flex-wrap: wrap;
-        }
-        .tab-btn {
-            padding: 0.7rem 1.4rem;
-            border: none;
-            background: none;
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: #64748b;
-            cursor: pointer;
-            border-bottom: 3px solid transparent;
-            margin-bottom: -2px;
-            text-decoration: none;
-        }
-        .tab-btn.active {
-            color: #4338ca;
-            border-bottom-color: #4338ca;
-        }
-        .mini-badge {
-            background:#ef4444;
-            color:white;
-            padding:2px 8px;
-            border-radius:999px;
-            font-size:0.8rem;
-            margin-left:6px;
-        }
-        .history-list {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-        .history-item {
-            padding: 16px 18px;
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            background: white;
-        }
-        .history-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-        .history-title {
-            font-size: 1.05rem;
-            font-weight: 700;
-            color: var(--dark);
-            margin-bottom: 6px;
-        }
-        .history-meta {
-            color: var(--text-muted);
-            font-size: 0.92rem;
-            line-height: 1.7;
-        }
-        .history-remark {
-            margin-top: 10px;
-            background: #f8fafc;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 10px 12px;
-            color: #475569;
-            font-size: 0.9rem;
-            line-height: 1.6;
-        }
-        .history-link {
-            display: inline-block;
-            margin-top: 10px;
-            color: #4338ca;
-            font-weight: 700;
-            text-decoration: none;
-        }
-        .status-completed {
-            color: #166534;
-            background: #dcfce7;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 0.8rem;
-            font-weight: 700;
-        }
-        .status-rejected {
-            color: #991b1b;
-            background: #fee2e2;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 0.8rem;
-            font-weight: 700;
-        }
-    </style>
 </head>
 <body class="main-body">
     <div class="sidebar" style="background: #0f172a;">
@@ -195,7 +146,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
         <div class="nav-links">
             <a href="admin_dashboard.php">👥 User Management</a>
             <a href="verify_achievements.php">
-                ✅ Verification Inbox
+                📥 Verification Inbox
                 <?php if ($total_pending > 0): ?>
                     <span class="mini-badge"><?php echo $total_pending; ?></span>
                 <?php endif; ?>
@@ -223,7 +174,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
         <div class="panel">
             <?php if ($tab === 'events'): ?>
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
-                    <h2 style="color: var(--dark);">Event Review History</h2>
+                    <h2 style="color: var(--dark);">📅 Event History</h2>
                 </div>
 
                 <?php if ($eventHistoryResult && mysqli_num_rows($eventHistoryResult) > 0): ?>
@@ -234,7 +185,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
                                     <div>
                                         <div class="history-title"><?php echo htmlspecialchars($item['event_title']); ?></div>
                                         <div class="history-meta">
-                                            <strong>Student:</strong> @<?php echo htmlspecialchars($item['username']); ?><br>
+                                            <strong>Student:</strong> <?php echo htmlspecialchars(student_identity_text($item['student_id'], $item['email'])); ?><br>
                                             <strong>Category:</strong> <?php echo htmlspecialchars($item['event_category']); ?><br>
                                             <strong>Organizer:</strong> <?php echo htmlspecialchars($item['organizer']); ?><br>
                                             <strong>Related Club:</strong> <?php echo !empty($item['club_name']) ? htmlspecialchars($item['club_name']) : '-'; ?><br>
@@ -266,7 +217,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
 
             <?php elseif ($tab === 'clubs'): ?>
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
-                    <h2 style="color: var(--dark);">Club Review History</h2>
+                    <h2 style="color: var(--dark);">👥 Club History</h2>
                 </div>
 
                 <?php if ($clubHistoryResult && mysqli_num_rows($clubHistoryResult) > 0): ?>
@@ -277,7 +228,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
                                     <div>
                                         <div class="history-title"><?php echo htmlspecialchars($item['club_name']); ?></div>
                                         <div class="history-meta">
-                                            <strong>Student:</strong> @<?php echo htmlspecialchars($item['username']); ?><br>
+                                            <strong>Student:</strong> <?php echo htmlspecialchars(student_identity_text($item['student_id'], $item['email'])); ?><br>
                                             <strong>Category:</strong> <?php echo htmlspecialchars($item['club_category']); ?><br>
                                             <strong>Role:</strong> <?php echo htmlspecialchars($item['role_position']); ?><br>
                                             <strong>Membership Status:</strong> <?php echo htmlspecialchars($item['membership_status']); ?><br>
@@ -313,7 +264,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
 
             <?php elseif ($tab === 'achievements'): ?>
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
-                    <h2 style="color: var(--dark);">Achievement Review History</h2>
+                    <h2 style="color: var(--dark);">🏆 Achievement History</h2>
                 </div>
 
                 <?php if ($achievementHistoryResult && mysqli_num_rows($achievementHistoryResult) > 0): ?>
@@ -324,7 +275,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
                                     <div>
                                         <div class="history-title"><?php echo htmlspecialchars($item['title']); ?></div>
                                         <div class="history-meta">
-                                            <strong>Student:</strong> @<?php echo htmlspecialchars($item['username']); ?><br>
+                                            <strong>Student:</strong> <?php echo htmlspecialchars(student_identity_text($item['student_id'], $item['email'])); ?><br>
                                             <strong>Related Event:</strong> <?php echo !empty($item['event_title']) ? htmlspecialchars($item['event_title']) : '-'; ?><br>
                                             <strong>Category:</strong> <?php echo htmlspecialchars($item['category']); ?><br>
                                             <strong>Level:</strong> <?php echo htmlspecialchars($item['level']); ?><br>
@@ -347,7 +298,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
                                 </div>
 
                                 <?php if (!empty($item['evidence_file'])): ?>
-                                    <a href="<?php echo htmlspecialchars(history_file_url($item['evidence_file'])); ?>" target="_blank" class="history-link">📎 View Evidence File</a>
+                                    <a href="<?php echo htmlspecialchars(history_file_url($item['evidence_file'])); ?>" target="_blank" class="history-link">View Evidence File</a>
                                 <?php endif; ?>
                             </div>
                         <?php endwhile; ?>
@@ -358,7 +309,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
 
             <?php elseif ($tab === 'merits'): ?>
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
-                    <h2 style="color: var(--dark);">Merit Review History</h2>
+                    <h2 style="color: var(--dark);">⏱️ Merit History</h2>
                 </div>
 
                 <?php if ($meritHistoryResult && mysqli_num_rows($meritHistoryResult) > 0): ?>
@@ -369,7 +320,7 @@ $meritHistoryResult = mysqli_query($conn, $meritHistorySql);
                                     <div>
                                         <div class="history-title"><?php echo htmlspecialchars($item['activity_title']); ?></div>
                                         <div class="history-meta">
-                                            <strong>Student:</strong> @<?php echo htmlspecialchars($item['username']); ?><br>
+                                            <strong>Student:</strong> <?php echo htmlspecialchars(student_identity_text($item['student_id'], $item['email'])); ?><br>
                                             <strong>Related Event:</strong> <?php echo !empty($item['event_title']) ? htmlspecialchars($item['event_title']) : '-'; ?><br>
                                             <strong>Type:</strong> <?php echo htmlspecialchars($item['activity_type']); ?><br>
                                             <strong>Start Date:</strong> <?php echo htmlspecialchars($item['start_date']); ?><br>
