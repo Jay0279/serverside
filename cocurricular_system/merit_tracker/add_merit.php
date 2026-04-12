@@ -48,7 +48,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $sql = "INSERT INTO merits (user_id, activity_title, activity_type, start_date, end_date, hours_contributed, merit_points, description, status, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())";
         $stmt = mysqli_prepare($conn, $sql);
-        mysqli_stmt_bind_param($stmt, "issssdiss", $user_id, $activity_title, $activity_type, $start_date, $end_date, $hours_contributed, $merit_points, $description);
+        mysqli_stmt_bind_param($stmt, "issssdis", $user_id, $activity_title, $activity_type, $start_date, $end_date, $hours_contributed, $merit_points, $description);
 
         if (mysqli_stmt_execute($stmt)) {
             header("Location: merit.php?success=added");
