@@ -88,10 +88,10 @@ if (isset($_POST['login'])) {
             <h1 style="font-size: 2.2rem;">Co-curricular Management System</h1>
             <p>Welcome to the centralized portal for all your student activities.</p>
             <ul>
-                <li>dY". Track events and formal programmes</li>
-                <li>dY`Э Manage club memberships and roles</li>
-                <li>Г?ёЛ,? Record merit contribution hours</li>
-                <li>dY?+ Store achievements and recognitions</li>
+                <li>📅 Track events and formal programmes</li>
+                <li>👥 Manage club memberships and roles</li>
+                <li>⏱️ Record merit contribution hours</li>
+                <li>🏆 Store achievements and recognitions</li>
             </ul>
         </div>
 

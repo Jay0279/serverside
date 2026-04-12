@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $eventRow = mysqli_fetch_assoc(mysqli_stmt_get_result($eventStmt));
                 mysqli_stmt_close($eventStmt);
 
-                if ($eventRow && (float)$eventRow['event_hours'] > 0) {
+                if ($eventRow && (float) $eventRow['event_hours'] > 0) {
                     $checkStmt = mysqli_prepare($conn, "SELECT merit_id FROM merits WHERE event_id = ? AND user_id = ? LIMIT 1");
                     mysqli_stmt_bind_param($checkStmt, 'ii', $id, $eventRow['user_id']);
                     mysqli_stmt_execute($checkStmt);
@@ -186,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             (user_id, event_id, activity_title, activity_type, start_date, end_date, hours_contributed, merit_points, description, status, reviewed_at, reviewed_by, admin_remark) 
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed', NOW(), ?, ?)");
                         $meritDesc = 'Auto-generated from approved event (Role: ' . $eventRow['participation_role'] . ')';
-                        $autoMeritPoints = (int)$eventRow['merit_points'];
+                        $autoMeritPoints = (int) $eventRow['merit_points'];
 
                         mysqli_stmt_bind_param(
                             $meritStmt,
@@ -212,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     award_auto_achievements($conn, $eventRow['user_id']);
                 }
 
-                $flash = 'âœ… Event approved and marked as Completed. Merit record created if applicable.';
+                $flash = '✅ Event approved and marked as Completed. Merit record created if applicable.';
             } else {
                 $stmt = mysqli_prepare($conn, "UPDATE events 
                     SET event_status = 'Cancelled', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
@@ -221,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
 
-                $flash = 'âŒ Event has been rejected and marked as Cancelled.';
+                $flash = '❌ Event has been rejected and marked as Cancelled.';
                 $flashClass = 'error';
             }
         } elseif ($type === 'achievement') {
@@ -233,7 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
 
-                $flash = 'âœ… Achievement approved successfully.';
+                $flash = '✅ Achievement approved successfully.';
             } else {
                 $stmt = mysqli_prepare($conn, "UPDATE achievements 
                     SET status = 'Rejected', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
@@ -242,7 +242,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
 
-                $flash = 'âŒ Achievement has been rejected.';
+                $flash = '❌ Achievement has been rejected.';
                 $flashClass = 'error';
             }
         } elseif ($type === 'merit') {
@@ -265,7 +265,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     award_auto_achievements($conn, $merit_row['user_id']);
                 }
 
-                $flash = 'âœ… Merit record approved successfully. Auto achievement checked.';
+                $flash = '✅ Merit record approved successfully. Auto achievement checked.';
             } else {
                 $stmt = mysqli_prepare($conn, "UPDATE merits 
                     SET status = 'Rejected', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
@@ -274,7 +274,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
 
-                $flash = 'âŒ Merit record has been rejected.';
+                $flash = '❌ Merit record has been rejected.';
                 $flashClass = 'error';
             }
         } elseif ($type === 'club') {
@@ -286,7 +286,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
 
-                $flash = 'âœ… Club record approved successfully.';
+                $flash = '✅ Club record approved successfully.';
             } else {
                 $stmt = mysqli_prepare($conn, "UPDATE clubs 
                     SET review_status = 'Rejected', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
@@ -295,7 +295,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 mysqli_stmt_execute($stmt);
                 mysqli_stmt_close($stmt);
 
-                $flash = 'âŒ Club record has been rejected.';
+                $flash = '❌ Club record has been rejected.';
                 $flashClass = 'error';
             }
         }
@@ -455,14 +455,14 @@ $tab = $_GET['tab'] ?? 'events';
         </div>
 
         <div class="nav-links">
-            <a href="admin_dashboard.php">ðŸ‘¥ User Management</a>
+            <a href="admin_dashboard.php">👥 User Management</a>
             <a href="verify_achievements.php" class="active">
-                ðŸ“¥ Verification Inbox
+                📥 Verification Inbox
                 <?php if ($total_pending > 0): ?>
                     <span class="badge"><?php echo $total_pending; ?></span>
                 <?php endif; ?>
             </a>
-            <a href="view_history.php">ðŸ•˜ View History</a>
+            <a href="view_history.php">🕘 View History</a>
         </div>
 
         <a href="../auth/logout.php" class="logout-link">Log Out</a>
@@ -472,7 +472,7 @@ $tab = $_GET['tab'] ?? 'events';
         <div class="hero-banner" style="background: linear-gradient(135deg, #1e1b4b, #4338ca); color: white; margin-bottom: 2rem;">
             <div>
                 <p class="hero-label" style="color: #c7d2fe;">Action Required</p>
-                <h1 style="color: white;">Verification Inbox ðŸ“¥</h1>
+                <h1 style="color: white;">Verification Inbox 📥</h1>
                 <p style="opacity: 0.9; margin-top: 0.5rem;">
                     Review and approve student club, event, achievement, and merit records.
                     <strong style="color: #fbbf24;"><?php echo $total_pending; ?> item(s)</strong> awaiting your action.
@@ -486,19 +486,19 @@ $tab = $_GET['tab'] ?? 'events';
 
         <div class="tab-bar">
             <a href="?tab=events" class="tab-btn <?php echo $tab === 'events' ? 'active' : ''; ?>">
-                ðŸ“… Pending Events
+                📅 Pending Events
                 <?php if ($pending_events > 0): ?><span class="badge"><?php echo $pending_events; ?></span><?php endif; ?>
             </a>
             <a href="?tab=clubs" class="tab-btn <?php echo $tab === 'clubs' ? 'active' : ''; ?>">
-                ðŸ‘¥ Pending Clubs
+                👥 Pending Clubs
                 <?php if ($pending_clubs > 0): ?><span class="badge"><?php echo $pending_clubs; ?></span><?php endif; ?>
             </a>
             <a href="?tab=achievements" class="tab-btn <?php echo $tab === 'achievements' ? 'active' : ''; ?>">
-                ðŸ† 🏆 Pending Achievements
+                🏆 Pending Achievements
                 <?php if ($pending_achievements > 0): ?><span class="badge"><?php echo $pending_achievements; ?></span><?php endif; ?>
             </a>
             <a href="?tab=merits" class="tab-btn <?php echo $tab === 'merits' ? 'active' : ''; ?>">
-                â±ï¸ ⏱️ Pending Merits
+                ⏱️ Pending Merits
                 <?php if ($pending_merits > 0): ?><span class="badge"><?php echo $pending_merits; ?></span><?php endif; ?>
             </a>
         </div>
@@ -507,7 +507,7 @@ $tab = $_GET['tab'] ?? 'events';
             <div class="panel">
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
-                        <h2 style="color: var(--dark);">ðŸ“… Pending Events (<?php echo $pending_events; ?>)</h2>
+                        <h2 style="color: var(--dark);">📅 Pending Events (<?php echo $pending_events; ?>)</h2>
                     </div>
                 </div>
 
@@ -535,20 +535,20 @@ $tab = $_GET['tab'] ?? 'events';
                                             <div class="info-row">
                                                 <?php echo htmlspecialchars($row['event_category']); ?>
                                                 <?php if (!empty($row['club_name'])): ?>
-                                                    Â· <?php echo htmlspecialchars($row['club_name']); ?>
+                                                    · <?php echo htmlspecialchars($row['club_name']); ?>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="info-row"><?php echo htmlspecialchars($row['organizer']); ?></div>
                                         </td>
                                         <td style="padding: 1rem;"><?php echo date('d M Y', strtotime($row['event_date'])); ?></td>
                                         <td style="padding: 1rem;"><?php echo htmlspecialchars($row['participation_role']); ?></td>
-                                        <td style="padding: 1rem;"><?php echo rtrim(rtrim(number_format((float)$row['event_hours'], 1), '0'), '.'); ?> hrs</td>
-                                        <td style="padding: 1rem;"><?php echo (int)$row['merit_points']; ?> pts</td>
+                                        <td style="padding: 1rem;"><?php echo rtrim(rtrim(number_format((float) $row['event_hours'], 1), '0'), '.'); ?> hrs</td>
+                                        <td style="padding: 1rem;"><?php echo (int) $row['merit_points']; ?> pts</td>
                                         <td style="padding: 1rem; min-width: 220px;">
                                             <form method="POST">
                                                 <textarea name="admin_remark" class="remark-box" placeholder="Optional admin remark..."></textarea>
                                                 <input type="hidden" name="type" value="event">
-                                                <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
+                                                <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
                                                 <div class="action-btns">
                                                     <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this event?');">Approve</button>
                                                     <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this event?');">Reject</button>
@@ -563,7 +563,7 @@ $tab = $_GET['tab'] ?? 'events';
                     </div>
                 <?php else: ?>
                     <div style="text-align: center; padding: 3rem 0;">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">ðŸ“…</div>
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">📅</div>
                         <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No Pending Events!</h3>
                     </div>
                 <?php endif; ?>
@@ -573,7 +573,7 @@ $tab = $_GET['tab'] ?? 'events';
             <div class="panel">
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
-                        <h2 style="color: var(--dark);">ðŸ‘¥ Pending Clubs (<?php echo $pending_clubs; ?>)</h2>
+                        <h2 style="color: var(--dark);">👥 Pending Clubs (<?php echo $pending_clubs; ?>)</h2>
                     </div>
                 </div>
 
@@ -611,7 +611,7 @@ $tab = $_GET['tab'] ?? 'events';
                                             <form method="POST">
                                                 <textarea name="admin_remark" class="remark-box" placeholder="Optional admin remark..."></textarea>
                                                 <input type="hidden" name="type" value="club">
-                                                <input type="hidden" name="id" value="<?php echo (int)$row['club_id']; ?>">
+                                                <input type="hidden" name="id" value="<?php echo (int) $row['club_id']; ?>">
                                                 <div class="action-btns">
                                                     <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this club record?');">Approve</button>
                                                     <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this club record?');">Reject</button>
@@ -626,7 +626,7 @@ $tab = $_GET['tab'] ?? 'events';
                     </div>
                 <?php else: ?>
                     <div style="text-align: center; padding: 3rem 0;">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">ðŸ‘¥</div>
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">👥</div>
                         <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No Pending Clubs!</h3>
                     </div>
                 <?php endif; ?>
@@ -636,7 +636,7 @@ $tab = $_GET['tab'] ?? 'events';
             <div class="panel">
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
-                        <h2 style="color: var(--dark);">ðŸ† 🏆 Pending Achievements (<?php echo $pending_achievements; ?>)</h2>
+                        <h2 style="color: var(--dark);">🏆 Pending Achievements (<?php echo $pending_achievements; ?>)</h2>
                     </div>
                 </div>
 
@@ -681,7 +681,7 @@ $tab = $_GET['tab'] ?? 'events';
                                             <form method="POST">
                                                 <textarea name="admin_remark" class="remark-box" placeholder="Optional admin remark..."></textarea>
                                                 <input type="hidden" name="type" value="achievement">
-                                                <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
+                                                <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
                                                 <div class="action-btns">
                                                     <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this achievement?');">Approve</button>
                                                     <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this achievement?');">Reject</button>
@@ -696,7 +696,7 @@ $tab = $_GET['tab'] ?? 'events';
                     </div>
                 <?php else: ?>
                     <div style="text-align: center; padding: 3rem 0;">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">ðŸ†</div>
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🏆</div>
                         <h3 style="color: var(--dark); margin-bottom: 0.5rem;">All Caught Up!</h3>
                     </div>
                 <?php endif; ?>
@@ -706,7 +706,7 @@ $tab = $_GET['tab'] ?? 'events';
             <div class="panel">
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
-                        <h2 style="color: var(--dark);">â±ï¸ ⏱️ Pending Merits (<?php echo $pending_merits; ?>)</h2>
+                        <h2 style="color: var(--dark);">⏱️ Pending Merits (<?php echo $pending_merits; ?>)</h2>
                     </div>
                 </div>
 
@@ -742,7 +742,7 @@ $tab = $_GET['tab'] ?? 'events';
                                             <form method="POST">
                                                 <textarea name="admin_remark" class="remark-box" placeholder="Optional admin remark..."></textarea>
                                                 <input type="hidden" name="type" value="merit">
-                                                <input type="hidden" name="id" value="<?php echo (int)$row['merit_id']; ?>">
+                                                <input type="hidden" name="id" value="<?php echo (int) $row['merit_id']; ?>">
                                                 <div class="action-btns">
                                                     <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this merit record?');">Approve</button>
                                                     <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this merit record?');">Reject</button>
@@ -757,8 +757,8 @@ $tab = $_GET['tab'] ?? 'events';
                     </div>
                 <?php else: ?>
                     <div style="text-align: center; padding: 3rem 0;">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">â±ï¸</div>
-                        <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No ⏱️ Pending Merits!</h3>
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">⏱️</div>
+                        <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No Pending Merits!</h3>
                     </div>
                 <?php endif; ?>
             </div>
@@ -766,4 +766,3 @@ $tab = $_GET['tab'] ?? 'events';
     </div>
 </body>
 </html>
-
