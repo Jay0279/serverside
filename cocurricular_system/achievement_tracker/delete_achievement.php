@@ -9,6 +9,7 @@ if (!isset($_SESSION['user_id'])) {
 if (isset($_GET['id'])) {
     $id = intval($_GET['id']);
     $user_id = $_SESSION['user_id'];
+    $deleted = false;
 
     // First, get the filename so we can delete the actual file
     $check_sql = "SELECT evidence_file FROM achievements WHERE id = ? AND user_id = ?";
@@ -27,7 +28,15 @@ if (isset($_GET['id'])) {
         $delete_sql = "DELETE FROM achievements WHERE id = ? AND user_id = ?";
         $del_stmt = mysqli_prepare($conn, $delete_sql);
         mysqli_stmt_bind_param($del_stmt, "ii", $id, $user_id);
-        mysqli_stmt_execute($del_stmt);
+        $deleted = mysqli_stmt_execute($del_stmt);
+        mysqli_stmt_close($del_stmt);
+    }
+
+    mysqli_stmt_close($stmt);
+
+    if ($deleted) {
+        header("Location: achievements.php?success=deleted");
+        exit();
     }
 }
 
