@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 include '../config.php';
 
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
@@ -14,6 +14,26 @@ $flashClass = 'success';
 function safe_evidence_url($filename)
 {
     return "../cocurricular_system/achievement_tracker/uploads/" . rawurlencode($filename);
+}
+
+function fetch_rows_verify($conn, $sql, $types = '', ...$params)
+{
+    $stmt = mysqli_prepare($conn, $sql);
+    if (!$stmt) {
+        return false;
+    }
+
+    if ($types !== '') {
+        mysqli_stmt_bind_param($stmt, $types, ...$params);
+    }
+
+    mysqli_stmt_execute($stmt);
+    return mysqli_stmt_get_result($stmt);
+}
+
+function student_identity_verify($student_id, $email)
+{
+    return trim(($student_id ?? '') . ' | ' . ($email ?? ''));
 }
 
 /**
@@ -37,7 +57,6 @@ function award_auto_achievements($conn, $user_id)
         120 => ['title' => 'Outstanding Student Involvement Award', 'category' => 'Leadership', 'level' => 'University', 'source' => 'auto_merit_points'],
     ];
 
-    // Total approved merit hours
     $hours_total = 0;
     $hours_stmt = mysqli_prepare($conn, "SELECT COALESCE(SUM(hours_contributed), 0) AS total_hours FROM merits WHERE user_id = ? AND status = 'Completed'");
     mysqli_stmt_bind_param($hours_stmt, 'i', $user_id);
@@ -84,7 +103,6 @@ function award_auto_achievements($conn, $user_id)
         }
     }
 
-    // Total approved merit points from completed events
     $points_total = 0;
     $points_stmt = mysqli_prepare($conn, "SELECT COALESCE(SUM(merit_points), 0) AS total_points FROM events WHERE user_id = ? AND event_status = 'Completed'");
     mysqli_stmt_bind_param($points_stmt, 'i', $user_id);
@@ -155,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $eventRow = mysqli_fetch_assoc(mysqli_stmt_get_result($eventStmt));
                 mysqli_stmt_close($eventStmt);
 
-                if ($eventRow && (float)$eventRow['event_hours'] > 0) {
+                if ($eventRow && (float) $eventRow['event_hours'] > 0) {
                     $checkStmt = mysqli_prepare($conn, "SELECT merit_id FROM merits WHERE event_id = ? AND user_id = ? LIMIT 1");
                     mysqli_stmt_bind_param($checkStmt, 'ii', $id, $eventRow['user_id']);
                     mysqli_stmt_execute($checkStmt);
@@ -168,7 +186,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             (user_id, event_id, activity_title, activity_type, start_date, end_date, hours_contributed, merit_points, description, status, reviewed_at, reviewed_by, admin_remark) 
                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completed', NOW(), ?, ?)");
                         $meritDesc = 'Auto-generated from approved event (Role: ' . $eventRow['participation_role'] . ')';
-                        $autoMeritPoints = (int)$eventRow['merit_points'];
+                        $autoMeritPoints = (int) $eventRow['merit_points'];
 
                         mysqli_stmt_bind_param(
                             $meritStmt,
@@ -206,9 +224,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $flash = '❌ Event has been rejected and marked as Cancelled.';
                 $flashClass = 'error';
             }
-        }
-
-        elseif ($type === 'achievement') {
+        } elseif ($type === 'achievement') {
             if ($action === 'approve') {
                 $stmt = mysqli_prepare($conn, "UPDATE achievements 
                     SET status = 'Completed', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
@@ -229,9 +245,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $flash = '❌ Achievement has been rejected.';
                 $flashClass = 'error';
             }
-        }
-
-        elseif ($type === 'merit') {
+        } elseif ($type === 'merit') {
             if ($action === 'approve') {
                 $get_stmt = mysqli_prepare($conn, "SELECT user_id FROM merits WHERE merit_id = ? LIMIT 1");
                 mysqli_stmt_bind_param($get_stmt, 'i', $id);
@@ -263,9 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $flash = '❌ Merit record has been rejected.';
                 $flashClass = 'error';
             }
-        }
-
-        elseif ($type === 'club') {
+        } elseif ($type === 'club') {
             if ($action === 'approve') {
                 $stmt = mysqli_prepare($conn, "UPDATE clubs 
                     SET review_status = 'Approved', reviewed_at = NOW(), reviewed_by = ?, admin_remark = ?
@@ -291,46 +303,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $eventSql = "
-    SELECT e.*, u.username, c.club_name
+    SELECT e.*, u.student_id, u.email, c.club_name
     FROM events e
     JOIN users u ON e.user_id = u.id
     LEFT JOIN clubs c ON e.club_id = c.club_id
-    WHERE e.event_status = 'Upcoming'
+    WHERE e.event_status = ?
     ORDER BY e.event_date ASC
 ";
-$eventResult = mysqli_query($conn, $eventSql);
+$eventResult = fetch_rows_verify($conn, $eventSql, "s", 'Upcoming');
 $pending_events = $eventResult ? mysqli_num_rows($eventResult) : 0;
 
 $clubSql = "
-    SELECT c.*, u.username
+    SELECT c.*, u.student_id, u.email
     FROM clubs c
     JOIN users u ON c.user_id = u.id
-    WHERE c.review_status = 'Pending'
+    WHERE c.review_status = ?
     ORDER BY c.join_date ASC, c.club_id DESC
 ";
-$clubResult = mysqli_query($conn, $clubSql);
+$clubResult = fetch_rows_verify($conn, $clubSql, "s", 'Pending');
 $pending_clubs = $clubResult ? mysqli_num_rows($clubResult) : 0;
 
 $achieveSql = "
-    SELECT a.*, u.username, e.event_title
+    SELECT a.*, u.student_id, u.email, e.event_title
     FROM achievements a
     JOIN users u ON a.user_id = u.id
     LEFT JOIN events e ON a.event_id = e.id
-    WHERE a.status = 'Pending Verification'
+    WHERE a.status = ?
     ORDER BY a.achievement_date ASC
 ";
-$achieveResult = mysqli_query($conn, $achieveSql);
+$achieveResult = fetch_rows_verify($conn, $achieveSql, "s", 'Pending Verification');
 $pending_achievements = $achieveResult ? mysqli_num_rows($achieveResult) : 0;
 
 $meritSql = "
-    SELECT m.*, u.username, e.event_title
+    SELECT m.*, u.student_id, u.email, e.event_title
     FROM merits m
     JOIN users u ON m.user_id = u.id
     LEFT JOIN events e ON m.event_id = e.id
-    WHERE m.status = 'Pending'
+    WHERE m.status = ?
     ORDER BY m.start_date ASC, m.merit_id DESC
 ";
-$meritResult = mysqli_query($conn, $meritSql);
+$meritResult = fetch_rows_verify($conn, $meritSql, "s", 'Pending');
 $pending_merits = $meritResult ? mysqli_num_rows($meritResult) : 0;
 
 $total_pending = $pending_events + $pending_clubs + $pending_achievements + $pending_merits;
@@ -445,7 +457,7 @@ $tab = $_GET['tab'] ?? 'events';
         <div class="nav-links">
             <a href="admin_dashboard.php">👥 User Management</a>
             <a href="verify_achievements.php" class="active">
-                ✅ Verification Inbox
+                📥 Verification Inbox
                 <?php if ($total_pending > 0): ?>
                     <span class="badge"><?php echo $total_pending; ?></span>
                 <?php endif; ?>
@@ -495,7 +507,7 @@ $tab = $_GET['tab'] ?? 'events';
             <div class="panel">
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
-                        <h2 style="color: var(--dark);">Upcoming Events Pending Approval (<?php echo $pending_events; ?>)</h2>
+                        <h2 style="color: var(--dark);">📅 Pending Events (<?php echo $pending_events; ?>)</h2>
                     </div>
                 </div>
 
@@ -517,7 +529,7 @@ $tab = $_GET['tab'] ?? 'events';
                             <tbody>
                                 <?php while ($row = mysqli_fetch_assoc($eventResult)): ?>
                                     <tr style="border-bottom: 1px solid var(--border);">
-                                        <td style="padding: 1rem;"><strong>@<?php echo htmlspecialchars($row['username']); ?></strong></td>
+                                        <td style="padding: 1rem;"><strong><?php echo htmlspecialchars(student_identity_verify($row['student_id'], $row['email'])); ?></strong></td>
                                         <td style="padding: 1rem;">
                                             <strong><?php echo htmlspecialchars($row['event_title']); ?></strong>
                                             <div class="info-row">
@@ -530,16 +542,16 @@ $tab = $_GET['tab'] ?? 'events';
                                         </td>
                                         <td style="padding: 1rem;"><?php echo date('d M Y', strtotime($row['event_date'])); ?></td>
                                         <td style="padding: 1rem;"><?php echo htmlspecialchars($row['participation_role']); ?></td>
-                                        <td style="padding: 1rem;"><?php echo rtrim(rtrim(number_format((float)$row['event_hours'], 1), '0'), '.'); ?> hrs</td>
-                                        <td style="padding: 1rem;"><?php echo (int)$row['merit_points']; ?> pts</td>
+                                        <td style="padding: 1rem;"><?php echo rtrim(rtrim(number_format((float) $row['event_hours'], 1), '0'), '.'); ?> hrs</td>
+                                        <td style="padding: 1rem;"><?php echo (int) $row['merit_points']; ?> pts</td>
                                         <td style="padding: 1rem; min-width: 220px;">
                                             <form method="POST">
                                                 <textarea name="admin_remark" class="remark-box" placeholder="Optional admin remark..."></textarea>
                                                 <input type="hidden" name="type" value="event">
-                                                <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
+                                                <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
                                                 <div class="action-btns">
-                                                    <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this event?');">✅ Approve</button>
-                                                    <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this event?');">❌ Reject</button>
+                                                    <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this event?');">Approve</button>
+                                                    <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this event?');">Reject</button>
                                                 </div>
                                             </form>
                                         </td>
@@ -551,7 +563,7 @@ $tab = $_GET['tab'] ?? 'events';
                     </div>
                 <?php else: ?>
                     <div style="text-align: center; padding: 3rem 0;">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">🎉</div>
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">📅</div>
                         <h3 style="color: var(--dark); margin-bottom: 0.5rem;">No Pending Events!</h3>
                     </div>
                 <?php endif; ?>
@@ -561,7 +573,7 @@ $tab = $_GET['tab'] ?? 'events';
             <div class="panel">
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
-                        <h2 style="color: var(--dark);">Pending Club Records (<?php echo $pending_clubs; ?>)</h2>
+                        <h2 style="color: var(--dark);">👥 Pending Clubs (<?php echo $pending_clubs; ?>)</h2>
                     </div>
                 </div>
 
@@ -585,7 +597,7 @@ $tab = $_GET['tab'] ?? 'events';
                             <tbody>
                                 <?php while ($row = mysqli_fetch_assoc($clubResult)): ?>
                                     <tr style="border-bottom: 1px solid var(--border);">
-                                        <td style="padding: 1rem;"><strong>@<?php echo htmlspecialchars($row['username']); ?></strong></td>
+                                        <td style="padding: 1rem;"><strong><?php echo htmlspecialchars(student_identity_verify($row['student_id'], $row['email'])); ?></strong></td>
                                         <td style="padding: 1rem;"><strong><?php echo htmlspecialchars($row['club_name']); ?></strong></td>
                                         <td style="padding: 1rem;"><?php echo htmlspecialchars($row['club_category']); ?></td>
                                         <td style="padding: 1rem;"><?php echo htmlspecialchars($row['role_position']); ?></td>
@@ -599,10 +611,10 @@ $tab = $_GET['tab'] ?? 'events';
                                             <form method="POST">
                                                 <textarea name="admin_remark" class="remark-box" placeholder="Optional admin remark..."></textarea>
                                                 <input type="hidden" name="type" value="club">
-                                                <input type="hidden" name="id" value="<?php echo (int)$row['club_id']; ?>">
+                                                <input type="hidden" name="id" value="<?php echo (int) $row['club_id']; ?>">
                                                 <div class="action-btns">
-                                                    <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this club record?');">✅ Approve</button>
-                                                    <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this club record?');">❌ Reject</button>
+                                                    <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this club record?');">Approve</button>
+                                                    <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this club record?');">Reject</button>
                                                 </div>
                                             </form>
                                         </td>
@@ -624,7 +636,7 @@ $tab = $_GET['tab'] ?? 'events';
             <div class="panel">
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
-                        <h2 style="color: var(--dark);">Pending Achievements (<?php echo $pending_achievements; ?>)</h2>
+                        <h2 style="color: var(--dark);">🏆 Pending Achievements (<?php echo $pending_achievements; ?>)</h2>
                     </div>
                 </div>
 
@@ -647,7 +659,7 @@ $tab = $_GET['tab'] ?? 'events';
                             <tbody>
                                 <?php while ($row = mysqli_fetch_assoc($achieveResult)): ?>
                                     <tr style="border-bottom: 1px solid var(--border);">
-                                        <td style="padding: 1rem;"><strong>@<?php echo htmlspecialchars($row['username']); ?></strong></td>
+                                        <td style="padding: 1rem;"><strong><?php echo htmlspecialchars(student_identity_verify($row['student_id'], $row['email'])); ?></strong></td>
                                         <td style="padding: 1rem;">
                                             <strong><?php echo htmlspecialchars($row['title']); ?></strong>
                                             <?php if (!empty($row['description'])): ?>
@@ -660,7 +672,7 @@ $tab = $_GET['tab'] ?? 'events';
                                         <td style="padding: 1rem;"><?php echo date('d M Y', strtotime($row['achievement_date'])); ?></td>
                                         <td style="padding: 1rem;">
                                             <?php if (!empty($row['evidence_file'])): ?>
-                                                <a href="<?php echo htmlspecialchars(safe_evidence_url($row['evidence_file'])); ?>" target="_blank" class="evidence-link">🔍 View</a>
+                                                <a href="<?php echo htmlspecialchars(safe_evidence_url($row['evidence_file'])); ?>" target="_blank" class="evidence-link">View</a>
                                             <?php else: ?>
                                                 <span style="color: #ef4444; font-size: 0.82rem; font-weight: 700;">No file</span>
                                             <?php endif; ?>
@@ -669,10 +681,10 @@ $tab = $_GET['tab'] ?? 'events';
                                             <form method="POST">
                                                 <textarea name="admin_remark" class="remark-box" placeholder="Optional admin remark..."></textarea>
                                                 <input type="hidden" name="type" value="achievement">
-                                                <input type="hidden" name="id" value="<?php echo (int)$row['id']; ?>">
+                                                <input type="hidden" name="id" value="<?php echo (int) $row['id']; ?>">
                                                 <div class="action-btns">
-                                                    <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this achievement?');">✅ Approve</button>
-                                                    <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this achievement?');">❌ Reject</button>
+                                                    <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this achievement?');">Approve</button>
+                                                    <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this achievement?');">Reject</button>
                                                 </div>
                                             </form>
                                         </td>
@@ -694,7 +706,7 @@ $tab = $_GET['tab'] ?? 'events';
             <div class="panel">
                 <div class="panel-header" style="margin-bottom: 1.5rem;">
                     <div>
-                        <h2 style="color: var(--dark);">Pending Merits (<?php echo $pending_merits; ?>)</h2>
+                        <h2 style="color: var(--dark);">⏱️ Pending Merits (<?php echo $pending_merits; ?>)</h2>
                     </div>
                 </div>
 
@@ -717,7 +729,7 @@ $tab = $_GET['tab'] ?? 'events';
                             <tbody>
                                 <?php while ($row = mysqli_fetch_assoc($meritResult)): ?>
                                     <tr style="border-bottom: 1px solid var(--border);">
-                                        <td style="padding: 1rem;"><strong>@<?php echo htmlspecialchars($row['username']); ?></strong></td>
+                                        <td style="padding: 1rem;"><strong><?php echo htmlspecialchars(student_identity_verify($row['student_id'], $row['email'])); ?></strong></td>
                                         <td style="padding: 1rem;"><strong><?php echo htmlspecialchars($row['activity_title']); ?></strong></td>
                                         <td style="padding: 1rem;"><?php echo htmlspecialchars($row['activity_type']); ?></td>
                                         <td style="padding: 1rem;"><?php echo !empty($row['event_title']) ? htmlspecialchars($row['event_title']) : '-'; ?></td>
@@ -730,10 +742,10 @@ $tab = $_GET['tab'] ?? 'events';
                                             <form method="POST">
                                                 <textarea name="admin_remark" class="remark-box" placeholder="Optional admin remark..."></textarea>
                                                 <input type="hidden" name="type" value="merit">
-                                                <input type="hidden" name="id" value="<?php echo (int)$row['merit_id']; ?>">
+                                                <input type="hidden" name="id" value="<?php echo (int) $row['merit_id']; ?>">
                                                 <div class="action-btns">
-                                                    <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this merit record?');">✅ Approve</button>
-                                                    <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this merit record?');">❌ Reject</button>
+                                                    <button type="submit" name="action" value="approve" class="btn-approve" onclick="return confirm('Approve this merit record?');">Approve</button>
+                                                    <button type="submit" name="action" value="reject" class="btn-reject" onclick="return confirm('Reject this merit record?');">Reject</button>
                                                 </div>
                                             </form>
                                         </td>
