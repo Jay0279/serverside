@@ -231,11 +231,7 @@ function buildPageLink($pageNumber)
                 <h3><?php echo rtrim(rtrim(number_format($total_hours, 1), '0'), '.'); ?></h3>
                 <p class="stat-note">Contribution time logged</p>
             </div>
-            <div class="stat-card blue">
-                <span class="stat-title">Merit Points</span>
-                <h3><?php echo $total_merit; ?></h3>
-                <p class="stat-note">From completed events</p>
-            </div>
+            
         </div>
 
         <div class="panel panel-tight">
