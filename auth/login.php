@@ -110,7 +110,7 @@ if (isset($_POST['login'])) {
                         <input
                             type="text"
                             name="username"
-                            placeholder="Admin username or student email/student ID"
+                            placeholder="Email/student ID"
                             value="<?php echo htmlspecialchars($saved_identifier); ?>"
                             required>
                     </div>
