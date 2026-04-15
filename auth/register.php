@@ -88,10 +88,10 @@ if (isset($_POST['register'])) {
             <h1 style="font-size: 2.2rem;">Join the System</h1>
             <p>Create your centralized student account to manage all your co-curricular records in one place.</p>
             <ul>
-                <li>dY". Event & Programme tracking</li>
-                <li>dY`Э Club membership management</li>
-                <li>Г?ёЛ,? Merit hours logging</li>
-                <li>dY?+ Achievement & Award records</li>
+                <li>📅 Event & Programme tracking</li>
+                <li>👥 Club membership management</li>
+                <li>⏱️ Merit hours logging</li>
+                <li>🏆 Achievement & Award records</li>
             </ul>
         </div>
 
