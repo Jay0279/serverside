@@ -25,7 +25,7 @@ $email = "admin@ccms.edu";
 $role = "admin";
 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-$check_admin_sql = "SELECT id FROM users WHERE username = ? LIMIT 1";
+$check_admin_sql = "SELECT user_id FROM users WHERE username = ? LIMIT 1";
 $check_admin_stmt = mysqli_prepare($conn, $check_admin_sql);
 mysqli_stmt_bind_param($check_admin_stmt, "s", $username);
 mysqli_stmt_execute($check_admin_stmt);

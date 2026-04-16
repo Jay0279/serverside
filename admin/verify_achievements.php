@@ -305,7 +305,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $eventSql = "
     SELECT e.*, u.student_id, u.email, c.club_name
     FROM events e
-    JOIN users u ON e.user_id = u.id
+    JOIN users u ON e.user_id = u.user_id
     LEFT JOIN clubs c ON e.club_id = c.club_id
     WHERE e.event_status = ?
     ORDER BY e.event_date ASC
@@ -316,7 +316,7 @@ $pending_events = $eventResult ? mysqli_num_rows($eventResult) : 0;
 $clubSql = "
     SELECT c.*, u.student_id, u.email
     FROM clubs c
-    JOIN users u ON c.user_id = u.id
+    JOIN users u ON c.user_id = u.user_id
     WHERE c.review_status = ?
     ORDER BY c.join_date ASC, c.club_id DESC
 ";
@@ -326,7 +326,7 @@ $pending_clubs = $clubResult ? mysqli_num_rows($clubResult) : 0;
 $achieveSql = "
     SELECT a.*, u.student_id, u.email, e.event_title
     FROM achievements a
-    JOIN users u ON a.user_id = u.id
+    JOIN users u ON a.user_id = u.user_id
     LEFT JOIN events e ON a.event_id = e.id
     WHERE a.status = ?
     ORDER BY a.achievement_date ASC
@@ -337,7 +337,7 @@ $pending_achievements = $achieveResult ? mysqli_num_rows($achieveResult) : 0;
 $meritSql = "
     SELECT m.*, u.student_id, u.email, e.event_title
     FROM merits m
-    JOIN users u ON m.user_id = u.id
+    JOIN users u ON m.user_id = u.user_id
     LEFT JOIN events e ON m.event_id = e.id
     WHERE m.status = ?
     ORDER BY m.start_date ASC, m.merit_id DESC

@@ -70,7 +70,7 @@ $eventHistoryResult = fetch_rows_history(
     "
         SELECT e.*, u.student_id, u.email, c.club_name
         FROM events e
-        JOIN users u ON e.user_id = u.id
+        JOIN users u ON e.user_id = u.user_id
         LEFT JOIN clubs c ON e.club_id = c.club_id
         WHERE e.event_status IN (?, ?)
           AND e.reviewed_at IS NOT NULL
@@ -86,7 +86,7 @@ $clubHistoryResult = fetch_rows_history(
     "
         SELECT c.*, u.student_id, u.email
         FROM clubs c
-        JOIN users u ON c.user_id = u.id
+        JOIN users u ON c.user_id = u.user_id
         WHERE c.review_status IN (?, ?)
           AND c.reviewed_at IS NOT NULL
         ORDER BY c.reviewed_at DESC
@@ -101,7 +101,7 @@ $achievementHistoryResult = fetch_rows_history(
     "
         SELECT a.*, u.student_id, u.email, e.event_title
         FROM achievements a
-        JOIN users u ON a.user_id = u.id
+        JOIN users u ON a.user_id = u.user_id
         LEFT JOIN events e ON a.event_id = e.id
         WHERE a.status IN (?, ?)
           AND a.reviewed_at IS NOT NULL
@@ -117,7 +117,7 @@ $meritHistoryResult = fetch_rows_history(
     "
         SELECT m.*, u.student_id, u.email, e.event_title
         FROM merits m
-        JOIN users u ON m.user_id = u.id
+        JOIN users u ON m.user_id = u.user_id
         LEFT JOIN events e ON m.event_id = e.id
         WHERE m.status IN (?, ?)
           AND m.reviewed_at IS NOT NULL

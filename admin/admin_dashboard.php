@@ -75,24 +75,24 @@ $pending_merits = fetch_single_count_admin($conn, "SELECT COUNT(*) AS total FROM
 $total_pending = $pending_events + $pending_clubs + $pending_achievements + $pending_merits;
 
 $events_expr = table_exists_admin($conn, $events_table)
-    ? "(SELECT COUNT(*) FROM `$events_table` WHERE user_id = u.id)"
+    ? "(SELECT COUNT(*) FROM `$events_table` WHERE user_id = u.user_id)"
     : "0";
 
 $clubs_expr = table_exists_admin($conn, $clubs_table)
-    ? "(SELECT COUNT(*) FROM `$clubs_table` WHERE user_id = u.id)"
+    ? "(SELECT COUNT(*) FROM `$clubs_table` WHERE user_id = u.user_id)"
     : "0";
 
 $merits_expr = table_exists_admin($conn, $merits_table)
-    ? "(SELECT COUNT(*) FROM `$merits_table` WHERE user_id = u.id)"
+    ? "(SELECT COUNT(*) FROM `$merits_table` WHERE user_id = u.user_id)"
     : "0";
 
 $achievements_expr = table_exists_admin($conn, $achievements_table)
-    ? "(SELECT COUNT(*) FROM `$achievements_table` WHERE user_id = u.id)"
+    ? "(SELECT COUNT(*) FROM `$achievements_table` WHERE user_id = u.user_id)"
     : "0";
 
 $sql = "
     SELECT
-        u.id,
+        u.user_id,
         u.username,
         u.student_id,
         u.email,
@@ -116,7 +116,7 @@ if ($search !== '') {
     $types .= "sss";
 }
 
-$sql .= " ORDER BY u.id DESC";
+$sql .= " ORDER BY u.user_id DESC";
 
 $stmt = mysqli_prepare($conn, $sql);
 $result = false;
@@ -255,7 +255,7 @@ if ($stmt) {
                                 $grand_total = (int) $row['total_events'] + (int) $row['total_clubs'] + (int) $row['total_merits'] + (int) $row['total_achievements'];
                                 ?>
                                 <tr class="table-row-hover" style="border-bottom: 1px solid var(--border);">
-                                    <td style="padding: 1.2rem 1rem; color: var(--text-muted); font-weight: 500;">#<?php echo $row['id']; ?></td>
+                                    <td style="padding: 1.2rem 1rem; color: var(--text-muted); font-weight: 500;">#<?php echo $row['user_id']; ?></td>
                                     <td style="padding: 1.2rem 1rem;"><strong style="color: var(--dark); font-size: 1.05rem;"><?php echo htmlspecialchars($row['student_id']); ?></strong></td>
                                     <td style="padding: 1.2rem 1rem; color: var(--text-muted);"><?php echo htmlspecialchars($row['email']); ?></td>
                                     <td style="padding: 1.2rem 1rem; text-align: center;"><?php echo $row['total_events']; ?></td>
